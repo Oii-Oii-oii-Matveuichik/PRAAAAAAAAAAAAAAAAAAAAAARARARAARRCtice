@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "XXX",
+    "X X"
+  ],
+  "key": {
+    "X": {
+      "item": "minecraft:coal"
+    }
+  },
+  "result": {
+    "id": "coal_armor:coal_helmet",
+    "count": 1
+  }
+}
