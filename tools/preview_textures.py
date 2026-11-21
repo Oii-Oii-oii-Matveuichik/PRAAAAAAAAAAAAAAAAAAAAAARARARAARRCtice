@@ -7,12 +7,13 @@ Run after generate_textures.py.
 import math
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+from generate_textures import FRAME_COUNT, FRAME_TICKS
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXTURES = ROOT / 'src/main/resources/assets/coal_armor/textures'
 
 
-def render(burning=False, back=False):
+def render(burning=False, back=False, frame=0):
     canvas = Image.new('RGBA', (340, 430), (0, 0, 0, 0))
     faces = []
     yaw = math.radians(155 if back else 25)
@@ -57,9 +58,13 @@ def render(burning=False, back=False):
     for x in [-6, 6]:
         cube(x, 12, 0, 4, 12, 4, skin, (40, 16))
 
-    prefix = 'coal_burning' if burning else 'coal'
-    outer = Image.open(TEXTURES / f'models/armor/{prefix}_layer_1.png').convert('RGBA')
-    inner = Image.open(TEXTURES / f'models/armor/{prefix}_layer_2.png').convert('RGBA')
+    armor = TEXTURES / 'models/armor'
+    def layer_path(layer):
+        if burning:
+            return armor / f'coal_burning/layer_{layer}_{frame % FRAME_COUNT:02d}.png'
+        return armor / f'coal_layer_{layer}.png'
+    outer = Image.open(layer_path(1)).convert('RGBA')
+    inner = Image.open(layer_path(2)).convert('RGBA')
     cube(0, 24, 0, 8, 8, 8, outer, inflate=0.55)
     cube(0, 12, 0, 8, 12, 4, outer, (16, 16), inflate=0.55)
     cube(0, 12, 0, 8, 12, 4, inner, (16, 16), inflate=0.25)
@@ -92,8 +97,8 @@ def main():
         text = ImageFont.truetype('DejaVuSans.ttf', 15)
     except OSError:
         title = text = ImageFont.load_default()
-    draw.text((36, 22), 'COAL ARMOR / VANILLA-STYLE PIXEL ART', font=title, fill='#e6e4df')
-    for i, (burn, back, label) in enumerate([(False, False, 'NORMAL / FRONT'), (False, True, 'NORMAL / BACK'), (True, False, 'BURNING / FRONT')]):
+    draw.text((36, 22), 'COAL ARMOR / FRACTURED GRAPHITE', font=title, fill='#e6e4df')
+    for i, (burn, back, label) in enumerate([(False, False, 'NORMAL / FRONT'), (False, True, 'NORMAL / BACK'), (True, False, 'BURNING / ANIMATED')]):
         x = 35 + i * 355
         draw.rounded_rectangle((x, 78, x+340, 514), radius=10, fill='#2b3037')
         image = render(burn, back)
@@ -109,6 +114,28 @@ def main():
     path.parent.mkdir(exist_ok=True)
     out.save(path)
     print(path)
+
+    # Same PNG frames and 2-tick timing as CoalArmorItem, not a separate mock animation.
+    frames = []
+    x = 35 + 2 * 355
+    for frame in range(FRAME_COUNT):
+        page = out.copy()
+        ImageDraw.Draw(page).rounded_rectangle((x, 78, x+340, 514), radius=10, fill='#2b3037')
+        mannequin = render(burning=True, frame=frame)
+        page.paste(mannequin, (x, 80), mannequin)
+        ImageDraw.Draw(page).text((x+15, 95), 'BURNING / ANIMATED', font=text, fill='#c7cbd0')
+        frames.append(page)
+    # One shared palette prevents GIF colour pumping between successive frames.
+    palette_samples = Image.new('RGB', (280 * 8, 163 * 6))
+    for i, page in enumerate(frames):
+        palette_samples.paste(page.resize((280, 163), Image.Resampling.NEAREST),
+                              ((i % 8) * 280, (i // 8) * 163))
+    palette = palette_samples.quantize(colors=256, dither=Image.Dither.NONE)
+    indexed = [page.quantize(palette=palette, dither=Image.Dither.NONE) for page in frames]
+    gif = path.with_suffix('.gif')
+    indexed[0].save(gif, save_all=True, append_images=indexed[1:],
+                    duration=FRAME_TICKS * 50, loop=0, disposal=2, optimize=False)
+    print(gif)
 
 
 if __name__ == '__main__':

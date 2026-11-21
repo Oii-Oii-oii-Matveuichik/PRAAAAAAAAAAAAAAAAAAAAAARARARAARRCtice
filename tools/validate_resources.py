@@ -53,9 +53,14 @@ class ResourceTests(unittest.TestCase):
                 self.assertEqual(png_size(RES / f'assets/{ns}/textures/{texture}.png'), (16, 16))
 
     def test_armor_layers(self):
-        for prefix in ['coal', 'coal_burning']:
-            for layer in [1, 2]:
-                self.assertEqual(png_size(RES / f'assets/coal_armor/textures/models/armor/{prefix}_layer_{layer}.png'), (64, 32))
+        armor_dir = RES / 'assets/coal_armor/textures/models/armor'
+        for layer in [1, 2]:
+            self.assertEqual(png_size(armor_dir / f'coal_layer_{layer}.png'), (64, 32))
+            frames = sorted((armor_dir / 'coal_burning').glob(f'layer_{layer}_*.png'))
+            self.assertEqual(len(frames), 48)
+            for index, path in enumerate(frames):
+                self.assertEqual(path.name, f'layer_{layer}_{index:02d}.png')
+                self.assertEqual(png_size(path), (64, 32))
 
     def test_translations(self):
         translations = [load(RES / f'assets/coal_armor/lang/{locale}.json') for locale in ['en_us', 'ru_ru']]

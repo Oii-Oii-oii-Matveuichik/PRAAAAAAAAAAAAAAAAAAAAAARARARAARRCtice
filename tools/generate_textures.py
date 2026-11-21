@@ -1,52 +1,86 @@
 #!/usr/bin/env python3
-"""Hand-pixelled Minecraft-style coal armor, at vanilla 64x32 / 16x16 resolution.
+"""Fractured coal pixel art and a seamless graphite/ember animation.
 
-Original pixel art: no Mojang image files are bundled or required. Faces follow the
-vanilla HumanoidModel UV layout, including the arms missing in the first revision.
-No interpolated noise, translucent edges, random holes, or blurred glow.
+Original deterministic cluster art, at vanilla 64x32 / 16x16 resolution. No Mojang
+images bundled or required. Each face has a distinct coal field, not a repeated tile.
+Follows HumanoidModel UVs. No interpolated noise, translucent edges, or blurred glow.
 """
+from functools import lru_cache
+import math
+import random
 from pathlib import Path
 from PIL import Image
+
+FRAME_COUNT = 48
+FRAME_TICKS = 2
 
 ROOT = Path(__file__).resolve().parent.parent
 ARMOR_DIR = ROOT / 'src/main/resources/assets/coal_armor/textures/models/armor'
 ITEM_DIR = ROOT / 'src/main/resources/assets/coal_armor/textures/item'
 
-# Small, connected diagonal coal strata; deliberately limited, neutral palette.
-COAL = [
-    '1111000011100000', '1100001111000001', '1000011110000111', '0001111000001110',
-    '0011110000111100', '0111000011110000', '1110000111000011', '1100011110000110',
-    '1000111100001100', '0001110000111000', '0011100011110000', '0110000111100001',
-    '1100001110000011', '1000111000011110', '0001110000111100', '0011100011110000',
-]
-PALETTE = [(16, 17, 18), (28, 29, 30), (39, 40, 41), (51, 52, 53), (67, 68, 69)]
+# Each UV face has its own deterministic, angular fracture field. No repeated tile.
+# Compact pixel clusters and quantised plane lighting, not smooth noise / photo detail.
+@lru_cache(maxsize=None)
+def fracture_field(w, h, seed):
+    rng = random.Random(seed * 7919 + w * 113 + h * 37)
+    sites = []
+    for y in range(-2, h + 3, 3):
+        for x in range(-2, w + 3, 3):
+            sites.append((x + rng.uniform(-1.2, 1.2), y + rng.uniform(-1.0, 1.0),
+                          rng.choice([20, 24, 28, 32, 36, 40]),
+                          rng.choice([-1, 1]), rng.uniform(0.8, 1.3)))
+    cells = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            distances = [(abs(x-sx) * weight + abs(y-sy) * 0.85, i)
+                         for i, (sx, sy, _, _, weight) in enumerate(sites)]
+            distances.sort()
+            row.append((distances[0][1], distances[1][0] - distances[0][0]))
+        cells.append(row)
+    pixels = []
+    for y in range(h):
+        row = []
+        for x in range(w):
+            idx, gap = cells[y][x]
+            sx, sy, value, direction, _ = sites[idx]
+            # Flat graphite facets broken by short, directional cleavage edges.
+            plane = (x - sx) * direction - (y - sy) * 0.6
+            value += 7 if plane < -0.6 else (-4 if plane > 0.9 else 0)
+            if gap < 0.32:
+                value -= 9
+            elif y > 0 and cells[y-1][x][0] != idx and (x + idx) % 3 != 0:
+                value += 15
+            if x > 0 and cells[y][x-1][0] != idx and (y + idx) % 4 == 0:
+                value += 9
+            row.append((value, value + 2, value + 3))
+        pixels.append(row)
+    return pixels
 
 
 def coal(x, y, shade=0):
-    index = int(COAL[y % 16][x % 16])
-    # Occasional single-pixel fractures, not independent per-pixel noise.
-    if (x * 3 + y * 7) % 37 == 0:
-        index += 1
-    c = PALETTE[min(index, 4)]
-    return tuple(max(8, min(92, v + shade)) for v in c) + (255,)
+    c = fracture_field(32, 32, 17)[y % 32][x % 32]
+    return tuple(max(8, min(96, v + shade)) for v in c) + (255,)
 
 
 def face(img, x, y, w, h, shade=0, cut=None, salt=0):
-    """One UV face, with a one-pixel bevel and intentional optional hem cuts."""
+    """Separate fractured coal plates, softly bevelled only at exposed corners."""
+    field = fracture_field(w, h, salt * 71 + x * 13 + y * 101)
     for v in range(h):
         for u in range(w):
             if cut and cut(u, v):
                 continue
             light = shade
             if v == 0:
-                light += 17
+                light += 10 if u % 3 != 1 else 3
             if u == 0:
-                light += 9
+                light += 5
             if u == w - 1:
-                light -= 5
+                light -= 4
             if v == h - 1:
-                light -= 7
-            img.putpixel((x + u, y + v), coal(u + salt, v + salt // 2, light))
+                light -= 6
+            color = tuple(max(8, min(96, c + light)) for c in field[v][u])
+            img.putpixel((x + u, y + v), color + (255,))
 
 
 def helmet(img):
@@ -123,13 +157,38 @@ CRACKS_2 = [
 ]
 
 
-def burning(base, cracks):
+def burning(base, cracks, frame):
+    """Looping graphite sheen plus travelling warm pulses along fine ember veins.
+
+    Original coal facets remain in place. No texture scrolling, blur, or alpha fade.
+    All time-dependent terms are periodic: frame 48 is exactly frame 0.
+    """
     result = base.copy()
-    for path in cracks:
+    t = (frame % FRAME_COUNT) / FRAME_COUNT
+    for y in range(base.height):
+        for x in range(base.width):
+            r, g, b, a = base.getpixel((x, y))
+            if not a:
+                continue
+            # A broad, subdued graphite reflection travels over existing bright facets.
+            wave = (0.5 + 0.5 * math.cos(math.tau * (t - y / 40 - x / 73))) ** 7
+            ridge = max(0, min(1, (r - 24) / 38))
+            shine = round(22 * wave * ridge)
+            result.putpixel((x, y), (r + shine, g + shine, b + shine, a))
+    for path_index, path in enumerate(cracks):
         for i, (x, y) in enumerate(path):
-            if base.getpixel((x, y))[3]:
-                result.putpixel((x, y), [(133, 45, 19, 255), (205, 76, 23, 255),
-                                       (241, 133, 39, 255)][i % 3])
+            if not base.getpixel((x, y))[3]:
+                continue
+            phase = t - i / (len(path) + 3) + path_index * 0.237
+            pulse = (0.5 + 0.5 * math.cos(math.tau * phase)) ** 5
+            breath = 0.5 + 0.5 * math.sin(math.tau * (t + path_index * 0.19))
+            r, g, b, a = base.getpixel((x, y))
+            # Dark red -> copper -> small golden hot point, never a solid orange patch.
+            heat = 0.08 + 0.12 * breath + 0.80 * pulse
+            target = (int(68 + 165 * heat), int(28 + 123 * heat), int(21 + 51 * heat))
+            mix = 0.4 + 0.6 * pulse
+            color = tuple(round(v * (1-mix) + c * mix) for v, c in zip((r, g, b), target))
+            result.putpixel((x, y), color + (a,))
     return result
 
 
@@ -173,7 +232,7 @@ def make_icon(part):
             if value != '.':
                 color = ICON_PALETTE[int(value)]
                 # Sparse connected coal marks within the midtones; preserve the bevels.
-                if value == '3' and COAL[y][x] == '0':
+                if value == '3' and fracture_field(16, 16, len(part) * 101)[y][x][0] < 27:
                     color = ICON_PALETTE[2]
                 img.putpixel((x, y), color)
     return img
@@ -190,10 +249,15 @@ def main():
     leggings(inner)
     for i, base, cracks in [(1, outer, CRACKS_1), (2, inner, CRACKS_2)]:
         base.save(ARMOR_DIR / f'coal_layer_{i}.png')
-        burning(base, cracks).save(ARMOR_DIR / f'coal_burning_layer_{i}.png')
+        animated = ARMOR_DIR / 'coal_burning'
+        animated.mkdir(exist_ok=True)
+        for frame in range(FRAME_COUNT):
+            burning(base, cracks, frame).save(animated / f'layer_{i}_{frame:02d}.png')
+        # Remove the obsolete static replacement: armor now selects an actual frame.
+        (ARMOR_DIR / f'coal_burning_layer_{i}.png').unlink(missing_ok=True)
     for part in ICONS:
         make_icon(part).save(ITEM_DIR / f'coal_{part}.png')
-    print('Wrote 4 armor layers and 4 item icons.')
+    print(f'Wrote 2 base layers, {FRAME_COUNT * 2} animation frames and 4 item icons.')
 
 
 if __name__ == '__main__':
