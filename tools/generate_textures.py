@@ -1,284 +1,200 @@
 #!/usr/bin/env python3
-"""Generates coal armor textures (item icons + armor layers, normal and burning).
+"""Hand-pixelled Minecraft-style coal armor, at vanilla 64x32 / 16x16 resolution.
 
-Coal look: dark gray base with chunky, jagged lighter/shadow patches (like a coal block),
-slightly ragged region borders. Burning variant adds glowing orange cracks.
-Helmet has only eye holes plus the characteristic nose guard.
+Original pixel art: no Mojang image files are bundled or required. Faces follow the
+vanilla HumanoidModel UV layout, including the arms missing in the first revision.
+No interpolated noise, translucent edges, random holes, or blurred glow.
 """
-import math
-import random
 from pathlib import Path
-
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-ARMOR_DIR = ROOT / "src/main/resources/assets/coal_armor/textures/models/armor"
-ITEM_DIR = ROOT / "src/main/resources/assets/coal_armor/textures/item"
+ARMOR_DIR = ROOT / 'src/main/resources/assets/coal_armor/textures/models/armor'
+ITEM_DIR = ROOT / 'src/main/resources/assets/coal_armor/textures/item'
 
-random.seed(20241121)
-
-# ---------------------------------------------------------------------------
-# Value noise (chunky coal patches)
-# ---------------------------------------------------------------------------
-
-def make_noise_grid(w, h, cell):
-    gw = max(2, w // cell + 2)
-    gh = max(2, h // cell + 2)
-    return [[random.random() for _ in range(gw)] for _ in range(gh)]
+# Small, connected diagonal coal strata; deliberately limited, neutral palette.
+COAL = [
+    '1111000011100000', '1100001111000001', '1000011110000111', '0001111000001110',
+    '0011110000111100', '0111000011110000', '1110000111000011', '1100011110000110',
+    '1000111100001100', '0001110000111000', '0011100011110000', '0110000111100001',
+    '1100001110000011', '1000111000011110', '0001110000111100', '0011100011110000',
+]
+PALETTE = [(16, 17, 18), (28, 29, 30), (39, 40, 41), (51, 52, 53), (67, 68, 69)]
 
 
-def sample_noise(grid, x, y, cell):
-    gx = x / cell
-    gy = y / cell
-    x0 = int(math.floor(gx))
-    y0 = int(math.floor(gy))
-    fx = gx - x0
-    fy = gy - y0
-    # smoothstep interpolation
-    sx = fx * fx * (3 - 2 * fx)
-    sy = fy * fy * (3 - 2 * fy)
-    top = grid[y0][x0] * (1 - sx) + grid[y0][x0 + 1] * sx
-    bot = grid[y0 + 1][x0] * (1 - sx) + grid[y0 + 1][x0 + 1] * sx
-    return top * (1 - sy) + bot * sy
+def coal(x, y, shade=0):
+    index = int(COAL[y % 16][x % 16])
+    # Occasional single-pixel fractures, not independent per-pixel noise.
+    if (x * 3 + y * 7) % 37 == 0:
+        index += 1
+    c = PALETTE[min(index, 4)]
+    return tuple(max(8, min(92, v + shade)) for v in c) + (255,)
 
 
-def coal_color(n, grain):
-    """Map noise value to a coal RGB color (dark base, chunky light/shadow patches)."""
-    # base dark coal
-    base = 30
-    # chunky patches raise brightness
-    v = base + n * 55
-    # deep shadows in low areas
-    if n < 0.25:
-        v = base - (0.25 - n) * 40
-    v += grain * 14 - 7
-    v = max(8, min(110, v))
-    # slight warm/gray variation
-    return (int(v), int(v), int(v + 2))
+def face(img, x, y, w, h, shade=0, cut=None, salt=0):
+    """One UV face, with a one-pixel bevel and intentional optional hem cuts."""
+    for v in range(h):
+        for u in range(w):
+            if cut and cut(u, v):
+                continue
+            light = shade
+            if v == 0:
+                light += 17
+            if u == 0:
+                light += 9
+            if u == w - 1:
+                light -= 5
+            if v == h - 1:
+                light -= 7
+            img.putpixel((x + u, y + v), coal(u + salt, v + salt // 2, light))
 
 
-def generate_coal(w, h, cell=4, seed=None):
-    """Returns a list of rows of (r,g,b) coal colors."""
-    if seed is not None:
-        random.seed(seed)
-    grid = make_noise_grid(w, h, cell)
-    grid2 = make_noise_grid(w, h, 2)
-    rows = []
-    for y in range(h):
-        row = []
-        for x in range(w):
-            n = sample_noise(grid, x, y, cell) * 0.75 + sample_noise(grid2, x, y, 2) * 0.25
-            grain = random.random()
-            row.append(coal_color(n, grain))
-        rows.append(row)
-    return rows
+def helmet(img):
+    face(img, 8, 0, 8, 8, 13, salt=2)  # crown
+    face(img, 16, 0, 8, 8, -5, salt=6)  # underside
+    for x, shade in [(0, -2), (8, 4), (16, -5), (24, 0)]:
+        face(img, x, 8, 8, 8, shade, salt=x // 2)
+    # Full faceplate: ONLY eye slits are open. The two-pixel nasal bridge is intact.
+    for x in [9, 10, 13, 14]:
+        img.putpixel((x, 11), (0, 0, 0, 0))
+    for y in range(9, 14):
+        for x in [11, 12]:
+            img.putpixel((x, y), coal(x, y, 18 if x == 11 else 8))
+    # Brow crossbar, not a broad shiny stripe down the whole face.
+    for x in range(9, 15):
+        img.putpixel((x, 10), coal(x, 2, 13))
+    # Two tiny chips only at the free lower edge; never at UV seams.
+    for x in [1, 22]:
+        img.putpixel((x, 15), (0, 0, 0, 0))
 
 
-def add_glow_cracks(img, count=14):
-    """Draws glowing orange cracks (random walks) onto an RGBA image in place."""
-    px = img.load()
-    w, h = img.size
-    for _ in range(count):
-        x = random.randint(2, w - 3)
-        y = random.randint(2, h - 3)
-        steps = random.randint(6, 16)
-        for _ in range(steps):
-            # bright core + softer halo
-            for dx, dy, col in ((0, 0, (255, 210, 63)), (1, 0, (255, 140, 0)), (-1, 0, (255, 140, 0)),
-                                (0, 1, (255, 140, 0)), (0, -1, (255, 140, 0)), (1, 1, (230, 90, 0)),
-                                (-1, -1, (230, 90, 0))):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < w and 0 <= ny < h:
-                    r, g, b, a = px[nx, ny]
-                    if a > 0:
-                        px[nx, ny] = (col[0], col[1], col[2], 255)
-            x += random.randint(-1, 1)
-            y += random.randint(-1, 1)
-            x = max(0, min(w - 1, x))
-            y = max(0, min(h - 1, y))
+def chest(img):
+    face(img, 20, 16, 8, 4, 9, salt=3)
+    face(img, 28, 16, 8, 4, -6, salt=5)
+    for x, w, shade in [(16, 4, -3), (20, 8, 5), (28, 4, -6), (32, 8, 0)]:
+        def cut(u, v, w=w):
+            # Neck opening and a subtly chipped waist, not holes in the torso.
+            return (w == 8 and v == 0 and u in [3, 4]) or (v == 11 and u in [0, w - 1])
+        face(img, x, 20, w, 12, shade, cut, salt=x)
+    # Shoulder caps and all four sleeve faces (both arms share these UVs).
+    face(img, 44, 16, 4, 4, 14, salt=4)
+    # Arm bottom UV (48,16) stays transparent: the sleeve ends above the elbow.
+    for x, shade in [(40, -3), (44, 5), (48, -6), (52, 0)]:
+        face(img, x, 20, 4, 6, shade,
+             cut=lambda u, v: v == 5 and u == 3, salt=x)
 
 
-def ragged_border(img, regions, rng):
-    """Makes region borders slightly ragged: noisy alpha on the outermost pixel ring."""
-    px = img.load()
-    w, h = img.size
-    for (x0, y0, x1, y1) in regions:
-        for x in range(x0, x1):
-            for y in (y0, y1 - 1):
-                if rng.random() < 0.35:
-                    r, g, b, a = px[x, y]
-                    px[x, y] = (r, g, b, 0)
-        for y in range(y0, y1):
-            for x in (x0, x1 - 1):
-                if rng.random() < 0.35:
-                    r, g, b, a = px[x, y]
-                    px[x, y] = (r, g, b, 0)
+def boots(img):
+    # Lower six pixels only: no opaque full-length leggings on the outer layer.
+    face(img, 8, 16, 4, 4, -8, salt=3)
+    for x, shade in [(0, -2), (4, 6), (8, -6), (12, 0)]:
+        face(img, x, 26, 4, 6, shade, salt=x + 7)
+        for u in range(4):
+            img.putpixel((x + u, 31), (14, 15, 16, 255))
 
 
-# Armor layer regions (64x32) from HumanoidModel texOffs:
-#   head (helmet): texOffs(0,0)  -> box UV region (0,0)-(32,16)
-#   body (chest):  texOffs(16,16)-> box UV region (16,16)-(40,32)
-#   leg (boots):   texOffs(0,16) -> box UV region (0,16)-(16,32)
-HEAD_REGION = (0, 0, 32, 16)
-BODY_REGION = (16, 16, 40, 32)
-LEG_REGION = (0, 16, 16, 32)
-
-# Head box front face (south): texOffs(0,0) + (d, d) = (8, 8), size (w=8, h=8) -> (8,8)-(16,16)
-FACE_X0, FACE_Y0 = 8, 8
-
-
-def punch_helmet_face(img):
-    """Helmet: only eye holes (transparent) + nose guard strip (lighter coal)."""
-    px = img.load()
-    # Nose guard: vertical strip in the center of the face (characteristic Minecraft helmet nose cross).
-    for y in range(FACE_Y0, FACE_Y0 + 8):
-        for x in (FACE_X0 + 3, FACE_X0 + 4):
-            r, g, b, a = px[x, y]
-            px[x, y] = (min(255, r + 45), min(255, g + 45), min(255, b + 45), 255)
-    # Eye holes: two transparent slits flanking the nose guard.
-    for y in (FACE_Y0 + 3, FACE_Y0 + 4):
-        for x in (FACE_X0 + 1, FACE_X0 + 2, FACE_X0 + 5, FACE_X0 + 6):
-            r, g, b, a = px[x, y]
-            px[x, y] = (r, g, b, 0)
+def leggings(img):
+    face(img, 4, 16, 4, 4, 9, salt=2)
+    for x, shade in [(0, -3), (4, 4), (8, -6), (12, 0)]:
+        face(img, x, 20, 4, 12, shade, salt=x + 4)
+        # A small knee plane reads as a plate rather than uniform black cloth.
+        if x == 4:
+            for u in [1, 2]:
+                img.putpixel((x + u, 25), coal(u, 4, 14))
+    # HumanoidModel's body UV is (16,16), so the waist occupies y=27..31.
+    for x, w, shade in [(16, 4, -3), (20, 8, 4), (28, 4, -6), (32, 8, 0)]:
+        face(img, x, 27, w, 5, shade, salt=x)
 
 
-def make_layer(burning, seed):
-    w, h = 64, 32
-    rows = generate_coal(w, h, cell=4, seed=seed)
-    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    px = img.load()
-    for y in range(h):
-        for x in range(w):
-            r, g, b = rows[y][x]
-            px[x, y] = (r, g, b, 255)
-    # Keep only the armor regions opaque (rest transparent), with ragged borders.
-    mask = Image.new("L", (w, h), 0)
-    mpx = mask.load()
-    for (x0, y0, x1, y1) in (HEAD_REGION, BODY_REGION, LEG_REGION):
-        for y in range(y0, y1):
-            for x in range(x0, x1):
-                mpx[x, y] = 255
-    img.putalpha(mask)
-    rng = random.Random(seed + 7)
-    ragged_border(img, (HEAD_REGION, BODY_REGION, LEG_REGION), rng)
-    punch_helmet_face(img)
-    if burning:
-        add_glow_cracks(img, count=16)
-    return img
+# Deliberate 1px ember seams. Same silhouettes and coal pixels as the unlit armor.
+CRACKS_1 = [
+    [(10, 2), (10, 3), (11, 3), (11, 4), (12, 4), (12, 5)],
+    [(26, 10), (27, 10), (27, 11), (28, 11), (28, 12)],
+    [(22, 22), (22, 23), (23, 23), (23, 24), (24, 24), (24, 25), (24, 26)],
+    [(35, 25), (36, 25), (36, 26), (37, 26), (37, 27)],
+    [(45, 21), (45, 22), (46, 22), (46, 23)],
+    [(5, 27), (5, 28), (6, 28), (6, 29)],
+]
+CRACKS_2 = [
+    [(5, 22), (5, 23), (6, 23), (6, 24), (6, 25), (5, 25), (5, 26)],
+    [(13, 27), (13, 28), (14, 28), (14, 29)],
+    [(22, 28), (23, 28), (23, 29), (24, 29), (24, 30)],
+    [(34, 29), (35, 29), (35, 30)],
+]
 
 
-# ---------------------------------------------------------------------------
-# Item icons (16x16)
-# ---------------------------------------------------------------------------
+def burning(base, cracks):
+    result = base.copy()
+    for path in cracks:
+        for i, (x, y) in enumerate(path):
+            if base.getpixel((x, y))[3]:
+                result.putpixel((x, y), [(133, 45, 19, 255), (205, 76, 23, 255),
+                                       (241, 133, 39, 255)][i % 3])
+    return result
 
-# X = coal, . = transparent, E = eye hole (transparent), N = nose guard (lighter)
+
+# Original 16px silhouettes, vanilla-like scale and lighting from upper left.
+# . transparent, 0 outline, 1 shadow, 2 dark coal, 3 coal, 4 bevel, 5 highlight.
 ICONS = {
-    "coal_helmet": [
-        "................",
-        ".....XXXXXX.....",
-        "...XXXXXXXXXX...",
-        "..XXXXXXXXXXXX..",
-        "..XXEEXXXEEXX...",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "...XXXXXXXXXX...",
-        "....XXXXXXXX....",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
+    'helmet': [
+        '................', '................', '................', '.....000000.....',
+        '....04544440....', '...0443333240...', '...0433333220...', '...0434444220...',
+        '...0420030020...', '...0422232220...', '...0422232220...', '....02222220....',
+        '.....000000.....', '................', '................', '................',
     ],
-    "coal_chestplate": [
-        "................",
-        "..XX........XX..",
-        ".XXXX......XXXX.",
-        ".XXXXXXXXXXXXXX.",
-        ".XXXXXXXXXXXXXX.",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "...XXXXXXXXXX...",
-        "...XXXXXXXXXX...",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
+    'chestplate': [
+        '................', '................', '.00000....00000.', '.04540....04440.',
+        '.043340..043320.', '.04333400433220.', '.02333343333220.', '.00233333332200.',
+        '...0433333220...', '...0433333220...', '...0333333220...', '...0333332220...',
+        '...0232222220...', '....02222220....', '.....000000.....', '................',
     ],
-    "coal_leggings": [
-        "................",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXXXXXXXXXXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "..XXX..XX..XXX..",
-        "................",
-        "................",
+    'leggings': [
+        '................', '................', '....00000000....', '...0454444320...',
+        '...0433333220...', '...0432223220...', '...0432002320...', '...0430..0320...',
+        '...0430..0320...', '...0430..0320...', '...0320..0220...', '...0320..0220...',
+        '...0220..0220...', '...0000..0000...', '................', '................',
     ],
-    "coal_boots": [
-        "................",
-        "................",
-        "................",
-        "..XXX....XXX....",
-        "..XXX....XXX....",
-        "..XXX....XXX....",
-        "..XXX....XXX....",
-        "..XXX....XXX....",
-        "..XXX....XXX....",
-        "..XXXXX..XXXXX..",
-        "..XXXXXX.XXXXXX.",
-        "..XXXXXXX.XXXXX.",
-        "..XXXXXXXX.XXXXX",
-        "..XXXXXXXX.XXXXX",
-        "................",
-        "................",
+    'boots': [
+        '................', '................', '................', '....000..000....',
+        '...0450..0440...', '...0430..0430...', '...0430..0330...', '...0330..0330...',
+        '...0320..0330...', '..04320..02320..', '.043220..022320.', '.032210..012220.',
+        '.00000....00000.', '................', '................', '................',
     ],
 }
+ICON_PALETTE = [(9, 10, 11, 255), (19, 20, 21, 255), (30, 31, 32, 255),
+                (43, 44, 45, 255), (67, 68, 69, 255), (91, 92, 93, 255)]
 
 
-def make_icon(name, pattern, seed):
-    rows = generate_coal(16, 16, cell=3, seed=seed)
-    img = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
-    px = img.load()
-    for y, line in enumerate(pattern):
-        for x, ch in enumerate(line):
-            if ch == "X":
-                r, g, b = rows[y][x]
-                px[x, y] = (r, g, b, 255)
-            elif ch == "N":
-                r, g, b = rows[y][x]
-                px[x, y] = (min(255, r + 45), min(255, g + 45), min(255, b + 45), 255)
+def make_icon(part):
+    img = Image.new('RGBA', (16, 16))
+    for y, row in enumerate(ICONS[part]):
+        assert len(row) == 16, (part, y)
+        for x, value in enumerate(row):
+            if value != '.':
+                color = ICON_PALETTE[int(value)]
+                # Sparse connected coal marks within the midtones; preserve the bevels.
+                if value == '3' and COAL[y][x] == '0':
+                    color = ICON_PALETTE[2]
+                img.putpixel((x, y), color)
     return img
 
 
 def main():
     ARMOR_DIR.mkdir(parents=True, exist_ok=True)
     ITEM_DIR.mkdir(parents=True, exist_ok=True)
+    outer = Image.new('RGBA', (64, 32))
+    helmet(outer)
+    chest(outer)
+    boots(outer)
+    inner = Image.new('RGBA', (64, 32))
+    leggings(inner)
+    for i, base, cracks in [(1, outer, CRACKS_1), (2, inner, CRACKS_2)]:
+        base.save(ARMOR_DIR / f'coal_layer_{i}.png')
+        burning(base, cracks).save(ARMOR_DIR / f'coal_burning_layer_{i}.png')
+    for part in ICONS:
+        make_icon(part).save(ITEM_DIR / f'coal_{part}.png')
+    print('Wrote 4 armor layers and 4 item icons.')
 
-    make_layer(burning=False, seed=101).save(ARMOR_DIR / "coal_layer_1.png")
-    make_layer(burning=False, seed=202).save(ARMOR_DIR / "coal_layer_2.png")
-    make_layer(burning=True, seed=303).save(ARMOR_DIR / "coal_burning_layer_1.png")
-    make_layer(burning=True, seed=404).save(ARMOR_DIR / "coal_burning_layer_2.png")
 
-    for i, (name, pattern) in enumerate(ICONS.items()):
-        make_icon(name, pattern, seed=500 + i).save(ITEM_DIR / f"{name}.png")
-
-    print("Textures written to:")
-    print(" ", ARMOR_DIR)
-    print(" ", ITEM_DIR)
-
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
