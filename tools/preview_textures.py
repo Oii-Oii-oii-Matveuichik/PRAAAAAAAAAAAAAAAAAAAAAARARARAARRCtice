@@ -13,10 +13,10 @@ ROOT = Path(__file__).resolve().parent.parent
 TEXTURES = ROOT / 'src/main/resources/assets/coal_armor/textures'
 
 
-def render(burning=False, back=False, frame=0):
+def render(burning=False, back=False, frame=0, yaw_degrees=None):
     canvas = Image.new('RGBA', (340, 430), (0, 0, 0, 0))
     faces = []
-    yaw = math.radians(155 if back else 25)
+    yaw = math.radians(yaw_degrees if yaw_degrees is not None else (155 if back else 25))
     pitch = math.radians(12)
 
     def project(p):
@@ -98,10 +98,11 @@ def main():
     except OSError:
         title = text = ImageFont.load_default()
     draw.text((36, 22), 'COAL ARMOR / FRACTURED GRAPHITE', font=title, fill='#e6e4df')
-    for i, (burn, back, label) in enumerate([(False, False, 'NORMAL / FRONT'), (False, True, 'NORMAL / BACK'), (True, False, 'BURNING / ANIMATED')]):
+    views = [(25, 'BURNING / FRONT'), (155, 'BURNING / BACK'), (-65, 'BURNING / SIDE')]
+    for i, (angle, label) in enumerate(views):
         x = 35 + i * 355
         draw.rounded_rectangle((x, 78, x+340, 514), radius=10, fill='#2b3037')
-        image = render(burn, back)
+        image = render(burning=True, yaw_degrees=angle)
         out.paste(image, (x, 80), image)
         draw.text((x+15, 95), label, font=text, fill='#c7cbd0')
     for i, part in enumerate(['helmet', 'chestplate', 'leggings', 'boots']):
@@ -117,13 +118,14 @@ def main():
 
     # Same PNG frames and 2-tick timing as CoalArmorItem, not a separate mock animation.
     frames = []
-    x = 35 + 2 * 355
     for frame in range(FRAME_COUNT):
         page = out.copy()
-        ImageDraw.Draw(page).rounded_rectangle((x, 78, x+340, 514), radius=10, fill='#2b3037')
-        mannequin = render(burning=True, frame=frame)
-        page.paste(mannequin, (x, 80), mannequin)
-        ImageDraw.Draw(page).text((x+15, 95), 'BURNING / ANIMATED', font=text, fill='#c7cbd0')
+        for i, (angle, label) in enumerate(views):
+            x = 35 + i * 355
+            ImageDraw.Draw(page).rounded_rectangle((x, 78, x+340, 514), radius=10, fill='#2b3037')
+            mannequin = render(burning=True, frame=frame, yaw_degrees=angle)
+            page.paste(mannequin, (x, 80), mannequin)
+            ImageDraw.Draw(page).text((x+15, 95), label, font=text, fill='#c7cbd0')
         frames.append(page)
     # One shared palette prevents GIF colour pumping between successive frames.
     palette_samples = Image.new('RGB', (280 * 8, 163 * 6))

@@ -27,6 +27,32 @@ class TextureTests(unittest.TestCase):
                 self.assertLess(warm, 55)
             self.assertEqual(len(unique), art.FRAME_COUNT)
 
+    def test_embers_cover_every_exposed_side(self):
+        required = {
+            1: {'helmet_front', 'helmet_back', 'helmet_left', 'helmet_right',
+                'chest_front', 'chest_back', 'chest_left', 'chest_right',
+                'sleeve_front', 'sleeve_back', 'sleeve_left', 'sleeve_right',
+                'boot_front', 'boot_back', 'boot_left', 'boot_right'},
+            2: {'leg_front', 'leg_back', 'leg_left', 'leg_right',
+                'waist_front', 'waist_back', 'waist_left', 'waist_right'},
+        }
+        for layer, faces in [(1, art.EMBER_FACES_1), (2, art.EMBER_FACES_2)]:
+            self.assertLessEqual(required[layer], set(faces))
+            base = Image.open(DIR / f'coal_layer_{layer}.png').convert('RGBA')
+            frames = [Image.open(DIR / f'coal_burning/layer_{layer}_{i:02d}.png').convert('RGBA')
+                      for i in range(art.FRAME_COUNT)]
+            for name, ((ox, oy), paths) in faces.items():
+                points = {(ox+x, oy+y) for path in paths for x, y in path}
+                with self.subTest(layer=layer, face=name):
+                    self.assertGreaterEqual(len(points), 3)
+                    for point in points:
+                        # No invisible veins in eye holes, bare arms or cut hems.
+                        self.assertEqual(base.getpixel(point)[3], 255)
+                        red = [frame.getpixel(point)[0] for frame in frames]
+                        self.assertGreater(max(red) - min(red), 70)
+                        self.assertTrue(any(frame.getpixel(point)[0] - frame.getpixel(point)[2] > 30
+                                            for frame in frames))
+
     def test_animation_is_looping_and_reproducible(self):
         for layer, paths in [(1, art.CRACKS_1), (2, art.CRACKS_2)]:
             base = Image.open(DIR / f'coal_layer_{layer}.png').convert('RGBA')
