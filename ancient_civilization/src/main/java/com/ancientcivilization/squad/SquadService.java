@@ -2,6 +2,8 @@ package com.ancientcivilization.squad;
 
 import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.EquipmentApplier;
+import com.ancientcivilization.spawn.MobGoals;
+import com.ancientcivilization.spawn.StructureLookup;
 import com.ancientcivilization.spawn.WardenTargeting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -10,14 +12,13 @@ import net.minecraft.core.registries.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.Structure;
-import net.minecraft.world.level.levelgen.structure.StructureTag;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -46,7 +47,7 @@ public final class SquadService {
 
     private SquadService(ServerLevel level) {
         this.level = level;
-        this.data = level.getDataStorage().getOrCreate(
+        this.data = level.getDataStorage().computeIfAbsent(
                 SquadSaveData.TYPE, "ancient_civilization:squads", SquadSaveData::new);
     }
 
@@ -161,45 +162,11 @@ public final class SquadService {
 
     /** Scans a grid around the player for a village structure (tag minecraft:village). */
     private BlockPos findVillageNear(ServerPlayer player, int radius) {
-        Set<Structure> villages = villageStructures();
-        if (villages.isEmpty()) {
-            return null;
-        }
+        TagKey<Structure> villageTag = TagKey.create(Registries.STRUCTURE,
+                ResourceLocation.tryParse("minecraft:village"));
         BlockPos origin = player.blockPosition();
-        for (int r = 16; r <= radius; r += 16) {
-            for (int a = 0; a < 24; a++) {
-                double angle = a / 24.0 * Math.PI * 2;
-                BlockPos p = origin.offset((int) (r * Math.cos(angle)), 0, (int) (r * Math.sin(angle)));
-                Structure found = level.getStructureAt(p);
-                if (found != null && villages.contains(found)) {
-                    return p;
-                }
-            }
-        }
-        return null;
-    }
-
-    private Set<Structure> villageStructures() {
-        try {
-            StructureTag tag = level.registryAccess()
-                    .registryOrThrow(Registries.STRUCTURE_TAG)
-                    .getOptional(ResourceLocation.tryParse("minecraft:village"))
-                    .orElse(null);
-            if (tag == null) {
-                return Set.of();
-            }
-            Registry<Structure> registry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
-            Set<Structure> found = new HashSet<>();
-            for (Structure structure : registry) {
-                if (tag.contains(structure)) {
-                    found.add(structure);
-                }
-            }
-            return found;
-        } catch (Exception e) {
-            LOGGER.warn("Village tag resolution failed: {}", e.getMessage());
-            return Set.of();
-        }
+        BlockPos found = level.findNearestMapStructure(villageTag, origin, radius, false);
+        return found;
     }
 
     /** True when the spawn point sits in a ruin structure. */
@@ -209,18 +176,7 @@ public final class SquadService {
             return false;
         }
         Set<Structure> ruins = resolveStructures(ruinBuff.ruinStructures);
-        if (ruins.isEmpty()) {
-            return false;
-        }
-        for (int dx = -32; dx <= 32; dx += 32) {
-            for (int dz = -32; dz <= 32; dz += 32) {
-                Structure found = level.getStructureAt(pos.offset(dx, 0, dz));
-                if (found != null && ruins.contains(found)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return structureAt(pos, ruins) != null;
     }
 
     /** Ruin buff = headcount only: spawns countMultiplier times as many members. */
@@ -259,7 +215,7 @@ public final class SquadService {
                     continue;
                 }
                 if (!type.biomes.isEmpty()
-                        && !type.biomes.contains(level.getBiome(candidate).getRegistryName().toString())) {
+                        && !type.biomes.contains(level.getBiome(candidate).getRegisteredName())) {
                     continue;
                 }
                 return Optional.of(candidate);
@@ -283,7 +239,7 @@ public final class SquadService {
 
     /**
      * Surface check: solid ground below, air (or water for ocean squads) to stand in,
-     * open sky above, and block light 15 — i.e. outdoors on the surface, never underground.
+     * open sky above, and sky light 15 — i.e. outdoors on the surface, never underground.
      */
     private boolean isValidSurface(BlockPos pos, boolean allowWater) {
         BlockState below = level.getBlockState(pos.below());
@@ -307,8 +263,8 @@ public final class SquadService {
         if (!above.isAir() && !(allowWater && above.is(Blocks.WATER))) {
             return false;
         }
-        // Block light 15 = fully lit by sky = on the surface.
-        return level.getBrightness(LightLayer.BLOCK, pos) == 15;
+        // Open sky above = on the surface, never underground.
+        return level.canSeeSky(pos);
     }
 
     private Optional<BlockPos> findAncientCityPosition() {
@@ -318,16 +274,17 @@ public final class SquadService {
         }
         if (data.hasAncientCityCache()) {
             BlockPos cached = new BlockPos(data.ancientCityX(), data.ancientCityY(), data.ancientCityZ());
-            if (level.getStructureAt(cached) == ancientCity) {
+            if (structureAt(cached, Set.of(ancientCity)) != null) {
                 return Optional.of(adjustToGround(cached));
             }
         }
         BlockPos worldSpawn = level.getLevelData().getSpawnPos();
+        Set<Structure> target = Set.of(ancientCity);
         for (int r = 32; r <= 384; r += 32) {
             for (int a = 0; a < 24; a++) {
                 double angle = a / 24.0 * Math.PI * 2;
                 BlockPos p = worldSpawn.offset((int) (r * Math.cos(angle)), 0, (int) (r * Math.sin(angle)));
-                if (level.getStructureAt(p) == ancientCity) {
+                if (structureAt(p, target) != null) {
                     BlockPos ground = adjustToGround(p);
                     data.setAncientCity(ground.getX(), ground.getY(), ground.getZ());
                     data.setDirty();
@@ -350,20 +307,19 @@ public final class SquadService {
         if (targets.isEmpty()) {
             return false;
         }
-        // Coarse scan of a 64-block box around the spawn point.
-        for (int dx = -32; dx <= 32; dx += 32) {
-            for (int dz = -32; dz <= 32; dz += 32) {
-                Structure found = level.getStructureAt(pos.offset(dx, 0, dz));
-                if (found != null && targets.contains(found)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return structureAt(pos, targets) != null;
+    }
+
+    /**
+     * Returns the first structure from {@code targets} whose bounding box contains
+     * {@code pos}, or {@code null} if none match.
+     */
+    private Structure structureAt(BlockPos pos, Set<Structure> targets) {
+        return StructureLookup.at(level, pos, targets);
     }
 
     private Set<Structure> resolveStructures(List<String> ids) {
-        Registry<Structure> registry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+        Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         Set<Structure> found = new HashSet<>();
         for (String id : ids) {
             ResourceLocation location = ResourceLocation.tryParse(id);
@@ -379,7 +335,7 @@ public final class SquadService {
         if (location == null) {
             return null;
         }
-        return level.registryAccess().registryOrThrow(Registries.STRUCTURE)
+        return level.registryAccess().lookupOrThrow(Registries.STRUCTURE)
                 .getOptional(location).orElse(null);
     }
 
@@ -419,14 +375,14 @@ public final class SquadService {
                 mob.addTag("ancient_civilization:ruin_buff");
             }
             if (marching && marchTarget != null) {
-                mob.goalSelector.addGoal(1, new SquadMarchGoal(mob, marchTarget, 0.6,
+                MobGoals.addGoal(mob, 1, new SquadMarchGoal(mob, marchTarget, 0.6,
                         ModConfig.INSTANCE.march.approachDistance));
                 mob.addTag("ancient_civilization:marching");
             }
             if ("ancient_city".equals(type.id)) {
-                WardenTargeting.apply(mob);
+                WardenTargeting.ensure(mob);
             }
-            mob.setPersistenceRequired(true);
+            mob.setPersistenceRequired();
             if ("hero".equals(member.role)) {
                 // Event squads drop nothing.
                 for (EquipmentSlot slot : EquipmentSlot.values()) {
@@ -434,7 +390,7 @@ public final class SquadService {
                         mob.setDropChance(slot, 0.0f);
                     }
                 }
-                mob.setDropChance(EquipmentSlot.MAIN_HAND, 0.0f);
+                mob.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
             }
             level.addFreshEntity(mob);
         }
@@ -477,7 +433,7 @@ public final class SquadService {
         if (below.isSolid()) {
             return below;
         }
-        String biome = level.getBiome(pos).getRegistryName().toString();
+        String biome = level.getBiome(pos).getRegisteredName();
         if (biome.startsWith("minecraft:desert") || biome.startsWith("minecraft:badlands")
                 || biome.startsWith("minecraft:savanna") || biome.startsWith("minecraft:windswept_hills")
                 || biome.startsWith("minecraft:ocean") || biome.startsWith("minecraft:river")

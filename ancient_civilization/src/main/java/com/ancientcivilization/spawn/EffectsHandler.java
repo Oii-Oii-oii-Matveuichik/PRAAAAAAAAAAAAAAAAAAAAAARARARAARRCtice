@@ -1,6 +1,7 @@
 package com.ancientcivilization.spawn;
 
 import com.ancientcivilization.config.ModConfig;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
@@ -27,9 +28,8 @@ public final class EffectsHandler {
         if (config == null || !config.effects.enabled) {
             return;
         }
-        String entityId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType())
-                .map(ResourceLocation::toString)
-                .orElse("");
+        ResourceLocation entityKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        String entityId = entityKey == null ? "" : entityKey.toString();
         String squadId = firstTag(mob, "ancient_civilization:squad_");
         String role = firstTag(mob, "ancient_civilization:role_");
 
@@ -53,7 +53,10 @@ public final class EffectsHandler {
             if (location == null) {
                 continue;
             }
-            var effect = BuiltInRegistries.MOB_EFFECT.getOptional(location).orElse(null);
+            Holder<MobEffect> effect = BuiltInRegistries.MOB_EFFECT
+                    .getOptional(location)
+                    .map(Holder::direct)
+                    .orElse(null);
             if (effect == null) {
                 continue;
             }

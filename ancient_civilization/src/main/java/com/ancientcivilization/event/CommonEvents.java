@@ -4,6 +4,7 @@ import com.ancientcivilization.spawn.ArmorRemapper;
 import com.ancientcivilization.spawn.EffectsHandler;
 import com.ancientcivilization.spawn.HpBuffHandler;
 import com.ancientcivilization.spawn.LocalDifficultySpawner;
+import com.ancientcivilization.spawn.RangedAIHandler;
 import com.ancientcivilization.spawn.RerollHandler;
 import com.ancientcivilization.squad.SquadService;
 import com.ancientcivilization.wanderer.WandererService;
@@ -46,6 +47,8 @@ public final class CommonEvents {
         LocalDifficultySpawner.tryApply(level, mob);
         // Generic config-driven effects (entities/roles/squads filtered).
         EffectsHandler.apply(level, mob);
+        // Ranged AI for skeleton/drowned families (self-disables unless a bow/crossbow is held).
+        RangedAIHandler.attach(level, mob);
     }
 
     private static void onLevelTickPre(LevelTickEvent.Pre event) {

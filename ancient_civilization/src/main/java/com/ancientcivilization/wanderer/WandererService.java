@@ -2,6 +2,7 @@ package com.ancientcivilization.wanderer;
 
 import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.EquipmentApplier;
+import com.ancientcivilization.spawn.StructureLookup;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -39,7 +40,7 @@ public final class WandererService {
 
     private WandererService(ServerLevel level) {
         this.level = level;
-        this.data = level.getDataStorage().getOrCreate(
+        this.data = level.getDataStorage().computeIfAbsent(
                 WandererSaveData.TYPE, "ancient_civilization:wanderers", WandererSaveData::new);
     }
 
@@ -65,17 +66,21 @@ public final class WandererService {
         ModConfig config = ModConfig.INSTANCE;
         int radius = config.wanderers.detectionRadius;
         BlockPos origin = player.blockPosition();
+        Set<Structure> portals = portalStructures();
+        if (portals.isEmpty()) {
+            return;
+        }
 
         for (int dx = -radius; dx <= radius; dx += 16) {
             for (int dz = -radius; dz <= radius; dz += 16) {
                 BlockPos pos = origin.offset(dx, 0, dz);
-                Structure structure = level.getStructureAt(pos);
-                if (structure == null || !portalStructures().contains(structure)) {
+                Structure structure = StructureLookup.at(level, pos, portals);
+                if (structure == null) {
                     continue;
                 }
                 // Optional biome whitelist (empty = any biome).
                 if (!config.wanderers.biomes.isEmpty()
-                        && !config.wanderers.biomes.contains(level.getBiome(pos).getRegistryName().toString())) {
+                        && !config.wanderers.biomes.contains(level.getBiome(pos).getRegisteredName())) {
                     continue;
                 }
                 long key = pos.asLong();
@@ -96,7 +101,7 @@ public final class WandererService {
 
     private Set<Structure> portalStructures() {
         if (portalStructures == null) {
-            Registry<Structure> registry = level.registryAccess().registryOrThrow(Registries.STRUCTURE);
+            Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
             Set<Structure> found = new HashSet<>();
             for (String id : List.of(
                     "minecraft:ruined_portal", "minecraft:ruined_portal_desert",
@@ -142,7 +147,7 @@ public final class WandererService {
             if (caste.role != null) {
                 mob.addTag("ancient_civilization:role_" + caste.role);
             }
-            mob.setPersistenceRequired(true);
+            mob.setPersistenceRequired();
             level.addFreshEntity(mob);
             LOGGER.debug("Wanderer ({}) spawned at {}", caste.role, pos.toShortString());
         } catch (Exception e) {

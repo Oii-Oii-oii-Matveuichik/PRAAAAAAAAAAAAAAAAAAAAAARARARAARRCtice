@@ -5,11 +5,11 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.util.Set;
-import java.util.UUID;
 
 /**
  * F4: gear-independent HP buff for the undead family (incl. V&V and squads).
@@ -39,14 +39,18 @@ public final class HpBuffHandler {
         if (config == null || !config.hpBuff.enabled) {
             return;
         }
-        if (!UNDEAD.contains(BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).orElse(null))) {
+        ResourceLocation mobKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        if (!UNDEAD.contains(mobKey)) {
             return;
         }
-        var attribute = mob.getAttribute(Attributes.MAX_HEALTH);
+        AttributeInstance attribute = mob.getAttribute(Attributes.MAX_HEALTH);
         if (attribute == null) {
             return;
         }
         double value = Math.max(config.hpBuff.min, attribute.getValue() * config.hpBuff.percent);
-        attribute.addModifier(UUID.randomUUID().toString(), value, AttributeModifier.Operation.ADD);
+        attribute.addPermanentModifier(new AttributeModifier(
+                ResourceLocation.tryParse("ancient_civilization:hp_buff"),
+                value,
+                AttributeModifier.Operation.ADD_VALUE));
     }
 }

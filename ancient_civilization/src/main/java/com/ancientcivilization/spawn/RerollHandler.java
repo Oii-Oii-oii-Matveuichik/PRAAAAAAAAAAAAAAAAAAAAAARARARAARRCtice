@@ -45,9 +45,8 @@ public final class RerollHandler {
         if (mapping.isEmpty() || RANDOM.nextFloat() >= config.reroll.chance) {
             return false;
         }
-        String source = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType())
-                .map(ResourceLocation::toString)
-                .orElse(null);
+        ResourceLocation sourceKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        String source = sourceKey == null ? null : sourceKey.toString();
         String targetId = source == null ? null : mapping.get(source);
         if (targetId == null) {
             return false;
@@ -72,7 +71,7 @@ public final class RerollHandler {
             replacement.setPos(mob.getX(), mob.getY(), mob.getZ());
             replacement.setYRot(mob.getYRot());
             replacement.setXRot(mob.getXRot());
-            replacement.setPersistenceRequired(true);
+            replacement.setPersistenceRequired();
             level.addFreshEntity(replacement);
             LOGGER.debug("Rerolled {} -> {} at {}", source, targetId, mob.blockPosition().toShortString());
             return true;
@@ -84,12 +83,12 @@ public final class RerollHandler {
 
     private static void copyEquipment(Mob from, Mob to) {
         for (EquipmentSlot slot : EquipmentSlot.values()) {
-            if (slot == EquipmentSlot.MAIN_HAND) {
+            if (slot == EquipmentSlot.MAINHAND) {
                 to.setItemInHand(InteractionHand.MAIN_HAND, from.getMainHandItem().copy());
-            } else if (slot == EquipmentSlot.OFF_HAND) {
+            } else if (slot == EquipmentSlot.OFFHAND) {
                 to.setItemInHand(InteractionHand.OFF_HAND, from.getOffhandItem().copy());
             } else if (slot.isArmor()) {
-                to.setItemSlot(slot, from.getItemSlot(slot).copy());
+                to.setItemSlot(slot, from.getItemBySlot(slot).copy());
             }
         }
     }

@@ -1,8 +1,9 @@
 package com.ancientcivilization.squad;
 
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.datafix.DataFixTypes;
 import net.minecraft.world.level.saveddata.SavedData;
-import net.minecraft.world.level.saveddata.SavedDataType;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -11,8 +12,10 @@ import java.util.Map;
  * Per-dimension squad state: per-type timers, cooldowns and the cached ancient-city position.
  */
 public class SquadSaveData extends SavedData {
-    public static final SavedDataType<SquadSaveData> TYPE = new SavedDataType<>(
-            SquadSaveData.class, SquadSaveData::new, SquadSaveData::save, SquadSaveData::load);
+    public static final SavedData.Factory<SquadSaveData> TYPE = new SavedData.Factory<>(
+            SquadSaveData::new,
+            SquadSaveData::load,
+            DataFixTypes.LEVEL);
 
     /** Squad type id -> ticks since its last event. */
     private final Map<String, Long> timers = new HashMap<>();
@@ -70,7 +73,7 @@ public class SquadSaveData extends SavedData {
     }
 
     @Override
-    public CompoundTag save(CompoundTag tag) {
+    public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
         for (Map.Entry<String, Long> entry : timers.entrySet()) {
             tag.putLong("timer." + entry.getKey(), entry.getValue());
         }
@@ -86,7 +89,7 @@ public class SquadSaveData extends SavedData {
         return tag;
     }
 
-    public static SquadSaveData load(CompoundTag tag) {
+    public static SquadSaveData load(CompoundTag tag, HolderLookup.Provider registries) {
         SquadSaveData data = new SquadSaveData();
         for (String key : tag.getAllKeys()) {
             if (key.startsWith("timer.")) {

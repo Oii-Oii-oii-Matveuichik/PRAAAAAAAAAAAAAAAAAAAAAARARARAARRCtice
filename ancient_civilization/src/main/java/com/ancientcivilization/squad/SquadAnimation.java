@@ -8,9 +8,8 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.particles.BlockParticleOptions;
+import net.minecraft.world.level.particles.BlockParticleOption;
 import net.minecraft.world.level.particles.ParticleTypes;
-import net.minecraft.world.phys.Vec3;
 
 import java.util.Random;
 
@@ -32,6 +31,7 @@ public class SquadAnimation {
     private final Runnable onComplete;
 
     private int ticks;
+    private boolean completeFired;
 
     public SquadAnimation(ServerLevel level, BlockPos pos, BlockState digBlock,
                           ModConfig.Animation config, Runnable onComplete) {
@@ -51,7 +51,8 @@ public class SquadAnimation {
 
     public void tick() {
         ticks++;
-        if (ticks > durationTicks + 4) {
+        if (ticks > durationTicks + 4 && !completeFired) {
+            completeFired = true;
             onComplete.run();
             return;
         }
@@ -80,7 +81,7 @@ public class SquadAnimation {
             double x = pos.getX() + 0.5 + Math.cos(angle) * r;
             double z = pos.getZ() + 0.5 + Math.sin(angle) * r;
             double y = pos.getY() - 0.2 + RANDOM.nextDouble() * 0.9;
-            level.addParticle(new BlockParticleOptions(ParticleTypes.BLOCK, digBlock),
+            level.addParticle(new BlockParticleOption(ParticleTypes.BLOCK, digBlock),
                     x, y, z,
                     (RANDOM.nextDouble() - 0.5) * 0.15,
                     0.04 + RANDOM.nextDouble() * 0.08,
@@ -107,30 +108,28 @@ public class SquadAnimation {
         float pitch = burst
                 ? soundPitch * 0.7f
                 : soundPitch * (0.8f + RANDOM.nextFloat() * 0.4f);
-        level.playSound(null,
-                new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5),
-                event, SoundSource.BLOCKS, soundVolume, pitch);
+        level.playSound(null, pos, event, SoundSource.BLOCKS, soundVolume, pitch);
     }
 
     private SoundEvent digSound() {
         if (digBlock.is(Blocks.SAND)) {
-            return SoundEvents.BLOCK_SAND_BREAK;
+            return SoundEvents.SAND_BREAK;
         }
         if (digBlock.is(Blocks.RED_SAND)) {
-            return SoundEvents.BLOCK_RED_SAND_BREAK;
+            return SoundEvents.SAND_BREAK;
         }
         if (digBlock.is(Blocks.GRAVEL)) {
-            return SoundEvents.BLOCK_GRAVEL_BREAK;
+            return SoundEvents.GRAVEL_BREAK;
         }
-        if (digBlock.is(Blocks.DIRT)) {
-            return SoundEvents.BLOCK_DIRT_BREAK;
+        if (digBlock.is(Blocks.DIRT) || digBlock.is(Blocks.SANDSTONE)) {
+            return SoundEvents.STONE_BREAK;
         }
-        if (digBlock.is(Blocks.SANDSTONE)) {
-            return SoundEvents.BLOCK_SANDSTONE_BREAK;
+        if (digBlock.is(Blocks.SNOW)) {
+            return SoundEvents.SNOW_BREAK;
         }
         if (digBlock.is(Blocks.STONE)) {
-            return SoundEvents.BLOCK_STONE_BREAK;
+            return SoundEvents.STONE_BREAK;
         }
-        return SoundEvents.BLOCK_GRAVEL_BREAK;
+        return SoundEvents.GRAVEL_BREAK;
     }
 }

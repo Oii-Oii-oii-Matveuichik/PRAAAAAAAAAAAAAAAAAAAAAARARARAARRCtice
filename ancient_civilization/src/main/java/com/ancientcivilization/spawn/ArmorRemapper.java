@@ -8,7 +8,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.levelgen.structure.Structure;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,19 +32,18 @@ public final class ArmorRemapper {
         if (config == null || !config.armorRemap.enabled) {
             return;
         }
-        ResourceLocation biomeLocation = level.getBiome(mob.blockPosition()).getRegistryName();
-        String biome = biomeLocation.toString();
+        net.minecraft.core.Holder<net.minecraft.world.level.biome.Biome> biome = level.getBiome(mob.blockPosition());
+        String biomeId = biome.getRegisteredName();
+        float temperature = biome.value().getBaseTemperature();
 
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             if (!slot.isArmor()) {
                 continue;
             }
-            ItemStack stack = mob.getItemSlot(slot);
-            String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem())
-                    .map(ResourceLocation::toString)
-                    .orElse("");
-            String newId = remapItem(itemId, slotName(slot), biome,
-                    level.getBiome(mob.blockPosition()).getTemperature(), level, mob);
+            ItemStack stack = mob.getItemBySlot(slot);
+            ResourceLocation itemKey = BuiltInRegistries.ITEM.getKey(stack.getItem());
+            String itemId = itemKey == null ? "" : itemKey.toString();
+            String newId = remapItem(itemId, slotName(slot), biomeId, temperature, level, mob);
             if (newId != null) {
                 Item item = EquipmentApplier.resolveItem(newId);
                 if (item != null) {
@@ -126,14 +124,13 @@ public final class ArmorRemapper {
     private static String pickStage(String biome, ServerLevel level, LivingEntity mob,
                                     ModConfig config) {
         ModConfig.ArmorRemap remap = config.armorRemap;
-        String mobId = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType())
-                .map(ResourceLocation::toString)
-                .orElse("");
+        ResourceLocation mobKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        String mobId = mobKey == null ? "" : mobKey.toString();
         // Always fully oxidized: drowned/murk, ancient city, swamp-like biomes.
         if (mobId.equals("minecraft:drowned") || mobId.equals("variantsandventures:murk")) {
             return "oxidized";
         }
-        if (isInAncientCity(level, mob.blockPosition())) {
+        if (isInAncientCity(biome)) {
             return "oxidized";
         }
         if (contains(remap.alwaysOxidizedBiomes, biome)) {
@@ -146,6 +143,11 @@ public final class ArmorRemapper {
             return weightedStage(remap.oxidationDry);
         }
         return weightedStage(remap.oxidationTemperate);
+    }
+
+    private static boolean isInAncientCity(String biomeId) {
+        // Ancient City always generates in the deep dark biome.
+        return biomeId.contains("deep_dark");
     }
 
     private static String weightedStage(Map<String, Double> weights) {
@@ -169,21 +171,6 @@ public final class ArmorRemapper {
             }
         }
         return "base";
-    }
-
-    private static boolean isInAncientCity(ServerLevel level, net.minecraft.core.BlockPos pos) {
-        try {
-            Structure structure = level.getStructureAt(pos);
-            if (structure == null) {
-                return false;
-            }
-            return level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.STRUCTURE)
-                    .getOptional(ResourceLocation.tryParse("minecraft:ancient_city"))
-                    .map(structure::equals)
-                    .orElse(false);
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     private static boolean contains(List<String> list, String value) {

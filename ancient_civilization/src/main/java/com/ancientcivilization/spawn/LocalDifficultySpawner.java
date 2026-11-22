@@ -49,7 +49,8 @@ public final class LocalDifficultySpawner {
         }
         ModConfig.TopTier topTier = config.localDifficulty.topTier;
 
-        if (!TOP_MOBS.contains(BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType()).orElse(null))) {
+        ResourceLocation mobKey = BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType());
+        if (!TOP_MOBS.contains(mobKey)) {
             return;
         }
         ModConfig.LevelConfig levelConfig = config.localDifficulty.levels.forDifficulty(level.getDifficulty());
