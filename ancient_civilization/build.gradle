@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.neoform'
+    id 'maven-publish'
+}
+
+version = project.group
+version = '1.0.0'
+group = 'com.ancientcivilization'
+
+base {
+    archivesName = project.name
+}
+
+repositories {
+    maven {
+        name = 'NeoForge Maven'
+        url = 'https://maven.neoforged.net/releases'
+    }
+}
+
+dependencies {
+    implementation 'net.neoforged:neoforge:21.11.219'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+}

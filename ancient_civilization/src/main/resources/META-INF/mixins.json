@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.ancientcivilization.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ancientcivilization.mixin.AbstractSkeletonCrossbowMixin",
+    "ancientcivilization.mixin.AbstractDrownedRangedMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

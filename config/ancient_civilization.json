@@ -1,0 +1,424 @@
+{
+  "localDifficulty": {
+    "enabled": true,
+    "levels": {
+      "easy": { "enabled": false, "threshold": 3.5 },
+      "normal": { "enabled": true, "threshold": 3.0 },
+      "hard": { "enabled": true, "threshold": 2.5 }
+    },
+    "topTier": {
+      "enabled": true,
+      "chancePerSlot": 0.004,
+      "chanceWeapon": 0.004,
+      "helmet": [
+        { "item": "minecraft:netherite_helmet", "weight": 500 },
+        { "item": "minecraft:diamond_helmet", "weight": 200 },
+        { "item": "create_deep_dark:echo_armor_helmet", "weight": 200 },
+        { "item": "the_sift:siftite_helmet", "weight": 100 }
+      ],
+      "chestplate": [
+        { "item": "minecraft:netherite_chestplate", "weight": 500 },
+        { "item": "minecraft:diamond_chestplate", "weight": 200 },
+        { "item": "create_deep_dark:echo_armor_chestplate", "weight": 200 },
+        { "item": "the_sift:siftite_chestplate", "weight": 100 }
+      ],
+      "leggings": [
+        { "item": "minecraft:netherite_leggings", "weight": 500 },
+        { "item": "minecraft:diamond_leggings", "weight": 200 },
+        { "item": "create_deep_dark:echo_armor_leggings", "weight": 200 },
+        { "item": "the_sift:siftite_leggings", "weight": 100 }
+      ],
+      "boots": [
+        { "item": "minecraft:netherite_boots", "weight": 500 },
+        { "item": "minecraft:diamond_boots", "weight": 200 },
+        { "item": "create_deep_dark:echo_armor_boots", "weight": 200 },
+        { "item": "the_sift:siftite_boots", "weight": 100 }
+      ],
+      "weapon": [
+        { "item": "minecraft:netherite_sword", "weight": 60 },
+        { "item": "minecraft:netherite_axe", "weight": 60 },
+        { "item": "simplyswords:netherite_chakram", "weight": 10 },
+        { "item": "simplyswords:netherite_claymore", "weight": 10 },
+        { "item": "simplyswords:netherite_cutlass", "weight": 10 },
+        { "item": "simplyswords:netherite_glaive", "weight": 10 },
+        { "item": "simplyswords:netherite_greataxe", "weight": 10 },
+        { "item": "simplyswords:netherite_greathammer", "weight": 10 },
+        { "item": "simplyswords:netherite_katana", "weight": 10 },
+        { "item": "simplyswords:netherite_rapier", "weight": 10 },
+        { "item": "simplyswords:netherite_sai", "weight": 10 },
+        { "item": "simplyswords:netherite_scythe", "weight": 10 }
+      ]
+    }
+  },
+  "squads": {
+    "enabled": true,
+    "surfaceOnly": true,
+    "globalCooldownTicks": 600,
+    "types": [
+      {
+        "id": "plains",
+        "description": "Raiders of the plains",
+        "biomes": [
+          "minecraft:plains", "minecraft:sunflower_plains", "minecraft:meadow",
+          "minecraft:flower_plains", "minecraft:windswept_hills", "minecraft:savanna"
+        ],
+        "baseTimerTicks": 5400,
+        "boostedTimerTicks": 1800,
+        "structures": [
+          "minecraft:ruined_portal", "nova_structures:hamlet", "nova_structures:wild_ruin",
+          "nova_structures:well_oak", "terralith:fortified_village"
+        ],
+        "undergroundAllowed": false,
+        "members": [
+          {
+            "role": "hero",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:iron_katana",
+            "armor": {
+              "helmet": "luckysarmory:heavy_iron_helmet",
+              "chestplate": "luckysarmory:heavy_iron_chestplate",
+              "leggings": "luckysarmory:heavy_iron_leggings",
+              "boots": "luckysarmory:heavy_iron_boots"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:iron_glaive",
+            "armor": {
+              "helmet": "luckysarmory:heavy_iron_helmet",
+              "chestplate": "luckysarmory:heavy_iron_chestplate"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:iron_claymore",
+            "armor": {
+              "helmet": "luckysarmory:heavy_iron_helmet",
+              "leggings": "luckysarmory:heavy_iron_leggings"
+            }
+          },
+          {
+            "role": "archer",
+            "entity": "minecraft:skeleton",
+            "heldItem": "minecraft:bow",
+            "armor": {
+              "helmet": "chained_leather_armor:chainedleather_helmet",
+              "chestplate": "chained_leather_armor:chainedleather_chestplate",
+              "leggings": "chained_leather_armor:chainedleather_leggings",
+              "boots": "chained_leather_armor:chainedleather_boots"
+            }
+          },
+          {
+            "role": "peasant",
+            "entity": "minecraft:zombie",
+            "heldItem": "minecraft:iron_sword",
+            "armor": {}
+          }
+        ]
+      },
+      {
+        "id": "desert",
+        "description": "Warriors of the desert",
+        "biomes": [
+          "minecraft:desert", "minecraft:badlands", "minecraft:windswept_hills", "minecraft:savanna"
+        ],
+        "baseTimerTicks": 5400,
+        "boostedTimerTicks": 1800,
+        "structures": [
+          "minecraft:desert_pyramid", "minecraft:ruined_portal_desert",
+          "nova_structures:desert_ruins", "nova_structures:parched_camp",
+          "nova_structures:badlands_miner_outpost", "nova_structures:well_desert",
+          "nova_structures:tavern_desert", "terralith:desert_outpost",
+          "terralith:fortified_desert_village", "terralith:rubble_desert"
+        ],
+        "undergroundAllowed": false,
+        "members": [
+          {
+            "role": "hero",
+            "entity": "minecraft:husk",
+            "heldItem": "simplyswords:gold_katana",
+            "armor": {
+              "helmet": "luckysarmory:heavy_golden_helmet",
+              "chestplate": "luckysarmory:heavy_golden_chestplate",
+              "leggings": "luckysarmory:heavy_golden_leggings",
+              "boots": "luckysarmory:heavy_golden_boots"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:husk",
+            "heldItem": "simplyswords:gold_glaive",
+            "armor": {
+              "helmet": "luckysarmory:heavy_golden_helmet",
+              "chestplate": "luckysarmory:heavy_golden_chestplate"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:husk",
+            "heldItem": "simplyswords:gold_claymore",
+            "armor": {
+              "helmet": "luckysarmory:heavy_golden_helmet",
+              "leggings": "luckysarmory:heavy_golden_leggings"
+            }
+          },
+          {
+            "role": "archer",
+            "entity": "variantsandventures:parched",
+            "heldItem": "minecraft:bow",
+            "armor": {
+              "helmet": "chained_leather_armor:chainedleather_helmet",
+              "chestplate": "chained_leather_armor:chainedleather_chestplate",
+              "leggings": "chained_leather_armor:chainedleather_leggings",
+              "boots": "chained_leather_armor:chainedleather_boots"
+            }
+          },
+          {
+            "role": "peasant",
+            "entity": "minecraft:husk",
+            "heldItem": "minecraft:iron_sword",
+            "armor": {}
+          }
+        ]
+      },
+      {
+        "id": "ocean",
+        "description": "Legion of the drowned",
+        "biomes": [
+          "minecraft:ocean", "minecraft:warm_ocean", "minecraft:lukewarm_ocean",
+          "minecraft:deep_ocean", "minecraft:river", "minecraft:beach"
+        ],
+        "baseTimerTicks": 5400,
+        "boostedTimerTicks": 1800,
+        "structures": [
+          "minecraft:shipwreck", "minecraft:ocean_ruin", "nova_structures:conduit_ruin"
+        ],
+        "undergroundAllowed": false,
+        "members": [
+          {
+            "role": "hero",
+            "entity": "minecraft:drowned",
+            "heldItem": "minecraft:trident",
+            "armor": {
+              "helmet": "armory_bridge:heavy_copper_helmet",
+              "chestplate": "armory_bridge:heavy_copper_chestplate",
+              "leggings": "armory_bridge:heavy_copper_leggings",
+              "boots": "armory_bridge:heavy_copper_boots"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:drowned",
+            "heldItem": "minecraft:iron_sword",
+            "armor": {
+              "helmet": "armory_bridge:heavy_copper_helmet",
+              "chestplate": "armory_bridge:heavy_copper_chestplate"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:drowned",
+            "heldItem": "minecraft:iron_axe",
+            "armor": {
+              "helmet": "armory_bridge:heavy_copper_helmet",
+              "leggings": "armory_bridge:heavy_copper_leggings"
+            }
+          },
+          {
+            "role": "archer",
+            "entity": "minecraft:drowned",
+            "heldItem": "minecraft:bow",
+            "armor": {}
+          },
+          {
+            "role": "peasant",
+            "entity": "minecraft:drowned",
+            "heldItem": "minecraft:iron_sword",
+            "armor": {}
+          }
+        ]
+      },
+      {
+        "id": "ancient_city",
+        "description": "Watch of the ancient city",
+        "biomes": [],
+        "baseTimerTicks": 2700,
+        "boostedTimerTicks": 1800,
+        "structures": [],
+        "undergroundAllowed": true,
+        "members": [
+          {
+            "role": "hero",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:diamond_katana",
+            "armor": {
+              "helmet": "create_deep_dark:echo_armor_helmet",
+              "chestplate": "create_deep_dark:echo_armor_chestplate",
+              "leggings": "create_deep_dark:echo_armor_leggings",
+              "boots": "create_deep_dark:echo_armor_boots"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:diamond_glaive",
+            "armor": {
+              "helmet": "create_deep_dark:echo_armor_helmet",
+              "chestplate": "create_deep_dark:echo_armor_chestplate"
+            }
+          },
+          {
+            "role": "soldier",
+            "entity": "minecraft:zombie",
+            "heldItem": "simplyswords:diamond_claymore",
+            "armor": {
+              "helmet": "create_deep_dark:echo_armor_helmet",
+              "leggings": "create_deep_dark:echo_armor_leggings"
+            }
+          },
+          {
+            "role": "archer",
+            "entity": "minecraft:skeleton",
+            "heldItem": "minecraft:crossbow",
+            "armor": {}
+          },
+          {
+            "role": "archer",
+            "entity": "minecraft:skeleton",
+            "heldItem": "minecraft:bow",
+            "armor": {}
+          }
+        ]
+      }
+    ]
+  },
+  "reroll": {
+    "enabled": true,
+    "chance": 0.25,
+    "mapping": {
+      "minecraft:zombie": "minecraft:skeleton",
+      "minecraft:husk": "variantsandventures:parched",
+      "minecraft:drowned": "variantsandventures:murk",
+      "variantsandventures:gelid": "minecraft:stray",
+      "variantsandventures:thicket": "variantsandventures:verdant"
+    }
+  },
+  "armorRemap": {
+    "enabled": true,
+    "cold": { "copper": 0.30, "iron": 0.60, "golden": 0.10 },
+    "temperate": { "copper": 0.45, "iron": 0.40, "golden": 0.15 },
+    "hot": { "copper": 0.30, "iron": 0.15, "golden": 0.55 },
+    "mesa": { "copper": 0.25, "iron": 0.10, "golden": 0.65 },
+    "nether": { "copper": 0.20, "iron": 0.15, "golden": 0.65 },
+    "oxidationWet": { "base": 0.10, "exposed": 0.15, "weathered": 0.30, "oxidized": 0.45 },
+    "oxidationTemperate": { "base": 0.35, "exposed": 0.30, "weathered": 0.25, "oxidized": 0.10 },
+    "oxidationDry": { "base": 0.70, "exposed": 0.20, "weathered": 0.10, "oxidized": 0.00 },
+    "alwaysOxidizedBiomes": [
+      "minecraft:swamp", "minecraft:mangrove_swamp", "minecraft:old_growth_birch_forest",
+      "minecraft:old_growth_pine_taiga", "minecraft:old_growth_spruce_taiga",
+      "minecraft:dark_forest", "minecraft:flower_forest", "minecraft:cherry_grove",
+      "minecraft:lush_grove", "minecraft:jungle", "minecraft:jungle_hills",
+      "minecraft:mangrove_swamps"
+    ],
+    "wetBiomes": [
+      "minecraft:jungle", "minecraft:jungle_hills", "minecraft:mangrove_swamp",
+      "minecraft:mangrove_swamps", "minecraft:swamp", "minecraft:lush_grove",
+      "minecraft:old_growth_birch_forest", "minecraft:old_growth_pine_taiga",
+      "minecraft:old_growth_spruce_taiga", "minecraft:dark_forest",
+      "minecraft:flower_forest", "minecraft:cherry_grove"
+    ],
+    "dryBiomes": [
+      "minecraft:desert", "minecraft:badlands", "minecraft:windswept_hills",
+      "minecraft:savanna", "minecraft:savanna_plateau", "minecraft:windswept_savanna",
+      "minecraft:windswept_desert", "minecraft:snowy_plains", "minecraft:snowy_taiga",
+      "minecraft:snowy_mountains", "minecraft:ice_spikes", "minecraft:snowy_beach",
+      "minecraft:snowy_savanna", "minecraft:snowy_savanna_plateau"
+    ]
+  },
+  "hpBuff": {
+    "enabled": true,
+    "percent": 0.1,
+    "min": 1.0
+  },
+  "wanderers": {
+    "enabled": true,
+    "scanIntervalTicks": 200,
+    "detectionRadius": 64,
+    "chance": 0.1,
+    "biomes": [],
+    "castes": [
+      {
+        "role": "soldier",
+        "weight": 60,
+        "entity": "minecraft:zombie",
+        "heldItem": "simplyswords:iron_glaive",
+        "armor": {
+          "helmet": "luckysarmory:heavy_iron_helmet",
+          "chestplate": "luckysarmory:heavy_iron_chestplate"
+        }
+      },
+      {
+        "role": "hero",
+        "weight": 40,
+        "entity": "minecraft:zombie",
+        "heldItem": "simplyswords:iron_katana",
+        "armor": {
+          "helmet": "luckysarmory:heavy_iron_helmet",
+          "chestplate": "luckysarmory:heavy_iron_chestplate",
+          "leggings": "luckysarmory:heavy_iron_leggings",
+          "boots": "luckysarmory:heavy_iron_boots"
+        }
+      }
+    ]
+  },
+  "ruinBuff": {
+    "enabled": true,
+    "countMultiplier": 1.5,
+    "ruinStructures": [
+      "minecraft:ruined_portal",
+      "nova_structures:hamlet",
+      "nova_structures:wild_ruin",
+      "nova_structures:well_oak",
+      "terralith:fortified_village"
+    ]
+  },
+  "effects": {
+    "enabled": true,
+    "entries": [
+      {
+        "effect": "minecraft:strength",
+        "amplifier": 0,
+        "durationTicks": 0,
+        "chance": 0.1,
+        "entities": [
+          "minecraft:zombie",
+          "minecraft:skeleton",
+          "minecraft:husk",
+          "minecraft:drowned"
+        ],
+        "roles": [],
+        "squads": []
+      }
+    ]
+  },
+  "march": {
+    "enabled": true,
+    "triggerRadius": 128,
+    "spawnMin": 64,
+    "spawnMax": 96,
+    "approachDistance": 10.0,
+    "appliesTo": ["plains", "desert"]
+  },
+  "warden": {
+    "enabled": true
+  },
+  "animation": {
+    "enabled": true,
+    "durationTicks": 45,
+    "particleCount": 6,
+    "soundVolume": 0.6,
+    "soundPitch": 1.0
+  }
+}
