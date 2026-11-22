@@ -4,6 +4,7 @@ import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.LocalDifficultySpawner;
 import com.ancientcivilization.squad.SquadService;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.CommandSyntaxException;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -79,7 +80,10 @@ public final class SpawnTestCommands {
     // Squads
     // ------------------------------------------------------------------
 
-    private static int summonSquad(CommandSourceStack source, String typeId, int count) {
+    private static int summonSquad(CommandSourceStack source, String typeId, int count) throws CommandSyntaxException {
+        if (typeId.equals("all")) {
+            return summonAllSquads(source, count);
+        }
         ModConfig config = ModConfig.INSTANCE;
         if (config == null) {
             source.sendFailure(Component.literal("ancient_civilization config is not loaded yet"));
@@ -105,12 +109,13 @@ public final class SpawnTestCommands {
             SquadService.get(level).summon(type, center);
             summoned++;
         }
+        final int summonedFinal = summoned;
         source.sendSuccess(() -> Component.literal(
-                "Summoned '" + typeId + "' squad x" + summoned + " near " + player.blockPosition().toShortString()), true);
+                "Summoned '" + typeId + "' squad x" + summonedFinal + " near " + player.blockPosition().toShortString()), true);
         return 1;
     }
 
-    private static int summonAllSquads(CommandSourceStack source, int count) {
+    private static int summonAllSquads(CommandSourceStack source, int count) throws CommandSyntaxException {
         ModConfig config = ModConfig.INSTANCE;
         if (config == null || config.squads.types.isEmpty()) {
             source.sendFailure(Component.literal("No squad types configured"));
@@ -128,8 +133,9 @@ public final class SpawnTestCommands {
             }
             ids.add(type.id);
         }
+        final int summonedFinal = summoned;
         source.sendSuccess(() -> Component.literal(
-                "Summoned squads x" + summoned + " of every type [" + String.join(", ", ids) + "]"), true);
+                "Summoned squads x" + summonedFinal + " of every type [" + String.join(", ", ids) + "]"), true);
         return 1;
     }
 
@@ -145,7 +151,10 @@ public final class SpawnTestCommands {
     // Mobs
     // ------------------------------------------------------------------
 
-    private static int summonMob(CommandSourceStack source, String entityId, int count) {
+    private static int summonMob(CommandSourceStack source, String entityId, int count) throws CommandSyntaxException {
+        if (entityId.equals("all")) {
+            return summonAllMobs(source, count);
+        }
         ResourceLocation location = ResourceLocation.tryParse(entityId);
         EntityType<?> type = location == null ? null
                 : BuiltInRegistries.ENTITY_TYPE.getOptional(location).orElse(null);
@@ -160,7 +169,7 @@ public final class SpawnTestCommands {
         return summoned > 0 ? 1 : 0;
     }
 
-    private static int summonAllMobs(CommandSourceStack source, int count) {
+    private static int summonAllMobs(CommandSourceStack source, int count) throws CommandSyntaxException {
         Set<String> ids = allMobIds();
         if (ids.isEmpty()) {
             source.sendFailure(Component.literal("No mob types found for this mod"));
@@ -177,8 +186,9 @@ public final class SpawnTestCommands {
             }
             summoned += spawnMobs(source.getLevel(), type, player, count, id);
         }
+        final int summonedFinal = summoned;
         source.sendSuccess(() -> Component.literal(
-                "Summoned " + summoned + " mobs (" + ids.size() + " types: " + String.join(", ", ids) + ")"), true);
+                "Summoned " + summonedFinal + " mobs (" + ids.size() + " types: " + String.join(", ", ids) + ")"), true);
         return summoned > 0 ? 1 : 0;
     }
 
