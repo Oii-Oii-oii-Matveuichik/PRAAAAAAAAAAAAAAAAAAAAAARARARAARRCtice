@@ -1,244 +1,267 @@
-# SESSION HANDOFF — ancient_civilization (Minecraft 1.21.1 NeoForge)
+# Отчёт: ТЗ и механики спавна — `ancient_civilization` (Minecraft 1.21.1, NeoForge)
 
-> Инструкция для новой сессии: **всю проделанную работу считать НЕ выполненной** —
-> ни один баг не признан подтверждённым в игре. Документ описывает проект,
-> все требования пользователя, весь попытканный этап и оставшийся список задач.
-> Проходим всё с чистого листа, перепроверяя каждое изменение сборкой и игрой.
-
----
-
-## 1. Суть проекта
-
-Мод **`ancient_civilization`** (`com.ancientcivilization`) — переработка спавна
-вражеских мобов в Minecraft **1.21.1 / NeoForge**. Не добавляет новый ресурсный
-пакет; поведение задаётся конфигом и Java-логикой.
-
-**Что мод делает (F1–F10):**
-- **F1** Ядро: `EntityJoinLevelEvent` (NORMAL, после InControl) — контекст биома/структуры, конфиг JSON.
-- **F2** Вооружение скелета у ближнего бойца + скелеты как ближние мобы в отрядах (см. §2).
-- **F3** Ремап `heavy_iron` → copper/iron/golden по температуре биома + окисление меди по влажности.
-- **F4** HP-бафф: +10% maxHP нежити (в т.ч. отряды), через `AttributeModifier`.
-- **F5** Стрелковый AI без миксинов: самостоятельный `AncientRangedGoal` (зарядка + выстрел).
-- **F6** Движок событийных отрядов (таймер → спавн → анимация выкапывания → сброс).
-- **F7** Варден-приоритет для отряда Древнего города.
-- **F8** Заблудшие странники на руинах порталов (один ролл на структуру, SavedData).
-- **F9** Буст «рядом со структурой» (таймер + тег).
-- **F10** Марш отряда к деревне.
-
-**Статическая экипировка (касты, столы оружия/брони)** живёт в **InControl**
-(`config/incontrol/spawn.json`). **Логика/состояние** — в моде. Это важно:
-InControl экипирует на `finalize` (только при естественном спавне), а мод — на
-`EntityJoinLevelEvent`.
-
-**Зависимости:** только `neoforge` + `minecraft` required. Всё остальное
-**optional**: `incontrol`, `simplyswords`, `irons_artifice`, `the_sift`,
-`create_deep_dark`, `variantsandventures`, `luckysarmory`, `armory_bridge`,
-`chained_leather_armor`. Модовые ID предметов/мобов разрешаются только если
-мод установлен — иначе пропускается со warn (см. §6, баги из-за этого).
+> Документ-спецификация: **изначальное ТЗ, все начальные требования, присланная
+> версия `spawn.json`, механики спавна после итоговых правок**.
+> Это **не отчёт по работе над модом** — описание желаемого исходного состояния.
+>
+> **Статус:** по указанию пользователя вся проделанная работа считается **не
+> выполненной**. Этот документ — единый источник истины по ТЗ и механикам;
+> любые изменения проверяются заново сборкой и игрой.
 
 ---
 
-## 2. Все требования пользователя (накопленные в сессии)
+## 1. Изначальное ТЗ (technical specification)
 
-1. **HP-бафф 10%**, в т.ч. на отряды; буст применяется **только в 64 блоках от
-   деревни** (НЕ boost-all).
-2. **`mindifficulty` 3.0**; map reroll enabled (напр. значение, см. п. 8).
+Мод **`ancient_civilization`** (`com.ancientcivilization`) для Minecraft
+**1.21.1 / NeoForge**: переработка спавна вражеской нежити, не добавляющая ресурсный
+пакет — всё задаётся конфигом и Java-логикой. В задаче (F1–F10):
+
+- **F1 — ядро.** Центр на `EntityJoinLevelEvent` (NORMAL, после InControl):
+  контекст биома/структуры, конфиг JSON (Gson, читается без пересборки).
+- **F2 — вооружение скелета.** Вооружать ближних бойцов **вооружением скелета**
+  по оригинальному конфигу, с **приоритетом двуручному оружию**, шансы на оружие
+  как в оригинале; **скелеты как ближние мобы** (с теми же шансами на оружие и
+  броню, что у зомби) могут появляться **вместо зомби в составе отрядов**.
+- **F3 — ремап брони.** По температуре биома ремап `heavy_iron` →
+  copper/iron/golden + окисление меди по влажности.
+- **F4 — HP-бафф.** +10% maxHP нежити (включая отряды), через `AttributeModifier`.
+- **F5 — стрелковый AI.** Без миксинов: самостоятельный goal (зарядка + выстрел).
+- **F6 — отряды.** Событиеный движок: таймер → спавн → анимация выкапывания → сброс.
+- **F7 — варден.** Приоритет targeting для отряда Древнего города.
+- **F8 — заблудшие странники.** На руинах порталов: один ролл на структуру, SavedData.
+- **F9 — буст рядом со структурой.** Таймер + тег.
+- **F10 — марш.** Отряд движется к деревне.
+
+**Статика (каст, столы оружия/брони)** задана **InControl** в `spawn.json` —
+это авторитетный источник для шансов оружия и брони. **Логика/состояние** — в
+моде.
+
+### 1.1 Технические ограничения (из ТЗ)
+- **Нельзя** использовать миксины soft-interface (`@Implements`) — удалить, не
+  чинить. Оба миксин-файла удалены; ranged AI заменён на самостоятельный goal.
+- `goalSelector`/`targetSelector` — **protected**: добавлять goals **только через
+  рефлексию**, никогда напрямую.
+- Изменения **на `main`** (не на отдельном branch), commit должен быть виден на
+  `main`.
+- Разрешаются только `neoforge` + `minecraft`; остальное — **optional deps**
+  (`incontrol`, `simplyswords`, `irons_artifice`, `the_sift`, `create_deep_dark`,
+  `variantsandventures`, `luckysarmory`, `armory_bridge`, `chained_leather_armor`).
+  Модовые ID предметов/мобов разрешаются только при наличии соответствующего мода.
+
+---
+
+## 2. Все начальные требования пользователя
+
+**Классические требования:**
+1. **HP-бафф 10%** для нежити, включая отряды. Применяется **только в 64 блоках
+   от деревни** — не boost-all.
+2. **`mindifficulty` 3.0**; reroll-схема включена (см. §4.2).
 3. **Отряды:** странники (wanderers) soldier/hero с вероятностью; RuinBuff —
-   только `countMultiplier` (численность, cap 32); **герой не дропает** ничего.
-4. **Избегать `@Implements` soft-interface миксинов** — удалить, не чинить.
-5. **`goalSelector`/`targetSelector` — protected**: добавлять goals через рефлексию
-   (`MobGoals`), никогда напрямую.
+   **только `countMultiplier`** (численность, cap 32); **герой не дропает** ничего.
+4. **Удалить миксины** (`@Implements` soft-interface) — не чинить.
+5. **Goals — protected** → рефлексия (`MobGoals`), без прямого обращения.
 6. **Удалить оба миксин-файла**, не чинить.
-7. **Создавать отдельный branch нежелательно** — commit должен быть виден на `main`.
-8. **F2 (последняя корректка пользователя — считать главыственным):**
-   - **НЕ трансформация сущностей** (не «скелет → зомби», не «зомби → скелет»).
-   - Ближнего бойца вооружать **вооружением скелета** (как в оригинальном конфиге),
-     с **приоритетом двуручному оружию**; шансы на оружие — как в оригинале.
-   - Скелеты **как ближние мобы** (с теми же шансами на оружие и броню, что у зомби)
-     могут появляться **вместо зомби в составе отрядов**.
-9. **Команды тестирования:** нужны команды для призыва всех типов отрядов и всех
-   типов мобов, которые может породить мод.
-10. **7 багов из игре** (см. §5) — все требуют исправления.
+7. **Не создавать отдельный branch** — работа на `main`.
+
+**Ф2 — окончательная корректка (основная, ядро спавна):**
+8. **Удалить логика конвертации** для соседних мобов в скелетов **совершенно**
+   (не entity-replacement/transformation; не «скелет → зомби» и не обратно).
+   Трансформация сущностей исключена.
+9. Ближнего бойца вооружать **вооружением скелета**, как в **оригинальном
+   конфиге**, с **приоритетом двуручному оружию**.
+10. **Шансы на оружие** должны **точно соответствовать оригинальному конфигу**.
+11. Скелеты как **ближние мобы** (те же шансы на оружие и броню, что у зомби)
+    могут spawnиться **вместо зомби в составе отрядов**.
+
+**Требования по тестированию и исправлению:**
+12. **Команды тестирования:** команды для вызова **всех типов отрядов** и
+    **всех типов мобов**, которые может породить мод.
+13. **7 багов из игре** (все требуют исправления, см. §5):
+    - мобы, вызываемые `spawn mob`, появляются **без брони и оружия**;
+    - скелеты с арбалетами **заряжают, но не стреляют**;
+    - утопленники (уплотнители) **не стреляют из лука**;
+    - пустынные отряды спавнятся **без скелетов / без дальних юнитов**;
+    - отряды древнего города **не имеют защиты**;
+    - алмазные и выше доспехи **никогда не появляются**;
+    - нужна **команда для тестирования портальных странников**.
 
 ---
 
-## 3. Структура репозитория
+## 3. Присланная в первом сообщении версия `spawn.json`
 
-- `ancient_civilization/src/main/java/com/ancientcivilization/` — исходники мода.
-  - `AncientCivilization.java` — точка входа; читает конфиг, регистрит события и команды.
-  - `config/ModConfig.java` — весь конфиг (Gson, публичные поля). Секция `SkeletonMelee`
-    заменила старую `Reroll`.
-  - `config/ConfigLoader.java` — читает `config/ancient_civilization.json`, пишет дефолт.
-  - `event/CommonEvents.java` — `onEntityJoin` (ArmorRemapper, HpBuffHandler,
-    LocalDifficultySpawner, EffectsHandler, RangedAIHandler) + `onLevelTickPre`
-    (SquadService.tick, WandererService.tick).
-  - `spawn/` — `AncientRangedGoal`, `RangedAIHandler`, `MobGoals` (рефлексия),
-    `ArmorRemapper`, `EffectsHandler`, `EquipmentApplier`, `LocalDifficultySpawner`,
-    `HpBuffHandler`, `StructureLookup`, `WardenTargeting`.
-  - `squad/` — `SquadService` (движок отрядов + `summon` хук), `SquadMarchGoal`,
-    `SquadSaveData`, `SquadAnimation`.
-  - `wanderer/` — `WandererService`, `WandererSaveData`.
-  - `command/SpawnTestCommands.java` — `/ancientcivilization spawn ...` (см. §5, баги).
-- `config/ancient_civilization.json` — конфиг мода (референс; редактируется пользователь).
-- `config/incontrol/spawn.json` — конфиг InControl (столы каст/оружия/брони).
-- `docs/ancient_civilization/PLAN.md` — утверждённый план механик (русский).
-- `docs/ancient_civilization/SESSION_HANDOFF.md` — этот файл.
+**`config/incontrol/spawn.json`** — конфиг **InControl**, fourni в первом сообщении,
+**41 правило**. Авторитетный источник шансов оружия/брони. Все правила:
+`"when": "finalize"` (экипировка на финализации спавна), `"result": "allow"`,
+`"continue": true`. Формат — массив объектов: `mob` (целевые ID), `random`
+(вероятность), `helditem` / `armor*` / `nbt`.
 
----
+**Ключевые правила:**
 
-## 4. Проделанный этап (СЧИТАТЬ НЕ ВЫПОЛНЕННЫМ — всё перепроверить)
+- **Правило 12 (кредо F2 — стол оружия скелета):**
+  целевые — `minecraft:skeleton`, `minecraft:stray`, `minecraft:bogged`,
+  `variantsandventures:verdant`, `variantsandventures:murk`,
+  `variantsandventures:parched`. `helditem`:
+  `500=minecraft:bow`, `30=minecraft:crossbow`, `30=irons_artifice:musket`,
+  и по `1` (единичный вес) каждое из ближних SS:
+  claymore, cutlass, glaive, greataxe, greathammer, katana, rapier, scythe
+  (iron + gold, 16 штук). **Без `random` — вооружает всегда** (лук/арбалет/мукет
+  исключены из ближнего ролла).
+- **Правило 1** — zombie/husk: swords/axes (wooden/stone/iron, вес 50–80) +
+  все SS-ближние (вес 30). `random: 0.1`.
+- **Правило 2** — drowned: trident 250 + swords/axes + SS-ближние. `random: 0.1`.
+- **Правило 3** — gelid/thicket: аналог правила 1. `random: 0.05`.
+- **Правила 4–6** — zombie/husk/drowned: полный set `luckysarmory:heavy_iron_*`
+  по частям (helmet+chest 0.005; helmet+legs 0.004; helmet+boots 0.004) + SS-ближние.
+- **Правила 7–9** — gelid/thicket: heavy_iron по частям (0.0025/0.002/0.002).
+- **Правило 10** — zombie/husk/drowned: full heavy_iron set + SS-ближние (вес 50).
+  `random: 0.003`.
+- **Правило 11** — gelid/thicket: full heavy_iron set + SS (вес 50). `random: 0.0015`.
+- **Правила 13–14** — skeleton/stray/bogged: full `chainedleather` и full
+  `studdedleather` (chained_leather_armor). `random: 0.03`.
+- **Правила 15–18** — skeleton/stray/bogged: armor по слотам (helmet 0.05, chest
+  0.045, legs 0.04, boots 0.04) с весовым столом:
+  leather 370, **golden 487**, chainmail 129, iron 13, **diamond 1**,
+  chainedleather 10, studdedleather 10.
+- **Правила 19–22** — verdant/murk/parched: full chainedleather и studdedleather
+  (0.015); armor по слотам (0.025/0.0225/0.02/0.02) с тем же столом.
+- **Правила 23–26** — piglin: crossbow 100, golden sword/axe 100, gold SS 10;
+  zombified_piglin: golden sword 100, gold SS 10.
+- **Правила 27–33** — piglin/zombified: heavy_golden set по частям
+  (helmet+chest 0.008; helmet+legs 0.006; helmet+boots 0.006; три комбинации
+  3 частей 0.003; full set 0.001).
+- **Правила 34–35** — piglin/zombified: full chainedleather и studdedleather (0.03).
+- **Правила 36–39** — piglin/zombified: armor по слотам (0.05/0.045/0.04/0.04) с
+  столом: golden 600, leather 200, chainmail 100, chainedleather 50, studdedleather 50.
+- **Правило 40** — zombie/husk/drowned/wither_skeleton/gelid/thicket: NBT
+  `HandItems` — два iron cutlass. `random: 0.01`.
+- **Правило 41** — piglin/zombified: NBT `HandItems` — два golden sword. `random: 0.01`.
 
-Цель этапа: исправить `:compileJava`, переписать исходники под ванильный API **1.21.1**,
-удалить миксины, заменить ranged AI на самостоятельный goal, добавить команды
-тестирования и исправить краши/баги в игре. **Все изменения отправлены на `main`,
-но пользователь просит считать их неподтверждёнными.**
-
-### 4.1 Build / API / миксины
-- Переписано всё Java под **1.21.1**. Удалены 2 миксина и `ancientcivilization.mixins.json`;
-  `[[mixins]]` удалён из `neoforge.mods.toml`.
-- Ranged AI заменён на самостоятельный `AncientRangedGoal` (зарядка + `arrow.shoot`).
-- Ванильный API 1.21.1: `ResourceKey` в `net.minecraft.resources`,
-  `RegistryLookup.get(ResourceKey)→Optional<Holder<Reference<T>>`,
-  `ResourceKey.create` 2-arg, `Goal.canContinueToUse()`, `mob.level()`,
-  `getItemBySlot`, `setPersistenceRequired()` без аргумента, `computeIfAbsent` 2-arg,
-  `NearestAttackableTargetGoal` 3-arg, `ChunkAccess.getAllStarts()`,
-  `ParticleType` не extends `ParticleOptions` → `BlockParticleOption`,
-  `Holder.direct`/`getRegisteredName`, `getBaseTemperature()`.
-
-### 4.2 Runtime-краши (в игре)
-- **`HpBuffHandler.buff()`**: `addPermanentModifier` → **`addOrReplacePermanentModifier`**
-  (дублирующий модификатор `ancient_civilization:hp_buff` кинул
-  `IllegalArgumentException: Modifier is already applied` → краш при повторном join).
-- **`neoforge.mods.toml`**: `versionRange` `[21.11,)` → **`[21.1,)`** (старый парсился
-  как `[21,11]` и блокировал старт «requires neoforge 21.1.11 or above»).
-- **`SquadService`**: lambda-capture — финальные копии `marchingFinal`/`marchTargetFinal`.
-- **`SquadAnimation`**: `FALLING_DUST` → `new BlockParticleOption(...)`.
-- **`SquadMarchGoal`**: `canContinue()` → **`canContinueToUse()`**.
-- **`SquadService`/`WandererService`**: `import net.minecraft.resources.ResourceKey`.
-
-### 4.3 F2 — реролл → вооружение скелета / скелет-ближник
-- **Удалён `RerollHandler`** и его вызов в `CommonEvents` (трансформация сущностей
-  убрана полностью — ни та, ни обратная).
-- Секция `reroll` в конфиге заменена на **`skeletonMelee`**:
-  - `chance = 0.25` (из оригинала), `replaceEntities = ["minecraft:zombie"]`,
-    `skeletonEntity = "minecraft:skeleton"`, `applyTo = ["hero","soldier","peasant"]`.
-  - `weapons` — стол оружия скелета из оригинала (`incontrol/spawn.json`, правила
-    скелета), ближние оружия: claymore/glaive/greataxe/greathammer/scythe (двуручные,
-    вес 2) и cutlass/katana/rapier (одноручные, вес 1). Лук/арбалет/мукет исключены.
-- `SquadService.spawnSquad`: ближние роли вооружаются по столу скелета; скелеты как
-  ближние мобы появляются вместо зомби (25%); броня берётся из рола (та же, что у зомби).
-- `LocalDifficultySpawner.pickWeighted` сделан `public` для переиспользования.
-
-### 4.4 Команды тестирования `/ancientcivilization spawn ...`
-- `spawn squad <type> [count]` / `spawn squad all [count]`
-- `spawn mob <entity> [count]` / `spawn mob all [count]`
-- Мобов проходят `EntityJoinLevelEvent` → к ним применяются handlers мода.
-- **Много итераций исправления ошибок компиляции** (см. §6.2).
-
-### 4.5 Git-состояние (на конец сессии)
-- Branch: `arena/c98356ce-praaaaaaaaaaaaaaaaaaarararara`, fast-forward на `main`.
-- `origin/main` = **`06a1a03`**. Цепочка (по возрастанию):
-  `707e876` (Initial) → `7387d84` (мод F1-F10) → `bd0eabc` (build) → `6c48a64` (neo 21.1.267)
-  → `335a294` (API rewrite + миксины удалены) → `fc42f8e` (PLAN) → `0384f71`/`8d456fc`
-  (ResourceKey) → `9591628` (SquadAnimation) → `9804e9b` (lambda) → `a97b5f0` (neo range)
-  → `f8af5e4` (HpBuff) → `0ab2565` (reroll reverse) → `825d7d0` (test commands)
-  → `0a4a054` (F2 skeletonMelee) → `7d48072`/`e58f88d`/`1ef1dee`/`06a1a03` (compile-fix).
-- **Все commit — на `main`** (не на отдельном branch), как требовал пользователь.
+**Важные выводы из spawn.json:**
+- Двуручное оружие (claymore, glaive, greataxe, greathammer, scythe) и одноручное
+  (cutlass, katana, rapier) присутствуют в ближнем столе скелета единичным весом.
+- Лук/арбалет/мукет — **только дальний стол скелета**.
+- Алмазный доспех в столах брони — **вес 1** (ванильные minecraft:diamond_*),
+  т.е. достижим, но редко.
 
 ---
 
-## 5. Текущий список задач / баги (все НЕ подтверждены — перепроверить)
+## 4. Механики спавна после итоговых правок
 
-Пользователь выдал 7 пунктов. **Рассматривать как невыполненные задачи.**
+Спецификация спавна, как она описана в **`config/ancient_civilization.json`**
+после итоговых правок (это механики, которые должны работать; подтвердить в игре).
 
-1. **Нужна команда для тестирования портальных странников** (WandererService, F8).
-   Команды `spawn squad`/`spawn mob` есть, а странников — нет. Добавить, например,
-   `/ancientcivilization spawn wanderer [count]` (сплечение по конфигу `wanderers.castes`).
+### 4.1 Локальная сложность и топ-tier — `localDifficulty`
+- Уровни: `normal` (threshold **3.0**, enabled), `hard` (threshold 2.5, enabled),
+  `easy` (threshold 3.5, disabled).
+- **`topTier`** — спавн высших tier по эффективной сложности:
+  `chancePerSlot = 0.004`, `chanceWeapon = 0.004`.
+  - Armor (вес): `netherite 500`, `diamond 200`, `create_deep_dark:echo_* 200`,
+    `the_sift:siftite_* 100` — по 4 слота (helmet/chestplate/leggings/boots).
+  - Weapon: `netherite_sword 60`, `netherite_axe 60`, SS-netherite (chakram,
+    claymore, cutlass, glaive, greataxe, greathammer, katana, rapier, sai, scythe)
+    — 10.
+- **Механика:** алмазные и выше доспехи/оружие спавнятся при достижении порога
+  сложности с шансом 0.004 на слот (diamond 200/500 от netherite).
 
-2. **Все мобы, вызываемые командой `spawn mob`, появляются без брони и оружия.**
-   Причина (предположительная): InControl экипирует на `finalize`, который **не
-   срабатывает** на `addFreshEntity` (командный спавн). Может потребоваться задать
-   базовую экипировку прямо в `spawnMobs` (по типу мобa) или заменить спавн на
-   способ, проходящий через InControl.
+### 4.2 Отряды — `squads` (F6, F2, F10)
+Четыре типа. Всего 5 ролей: **hero / soldier / archer / peasant**. Timer:
+base 5400 ticks (ancient_city 2700), boosted 1800, global cooldown 600,
+`surfaceOnly: true` (ancient_city — underground).
 
-3. **Скелеты с арбалетами заряжают арбалет, но не стреляют.**
-   Баг в `AncientRangedGoal` (стрельба из арбалета). Зарядка работает
-   (`startUsingItem`), стрельба — нет.
+- **`plains`** (биомы: plains, sunflower_plains, meadow, flower_plains,
+  windswept_hills, savanna; структуры: ruined_portal, nova_structures:*,
+  terralith:fortified_village):
+  - hero — zombie, **iron katana**, full heavy_iron armor.
+  - soldier ×2 — zombie, **iron glaive** и **iron claymore**, heavy_iron по частям.
+  - archer — skeleton, **bow**, full chainedleather.
+  - peasant — zombie, iron sword, без брони.
+- **`desert`** (desert, badlands, windswept_hills, savanna; desert_pyramid,
+  ruined_portal_desert, nova_structures desert, terralith desert):
+  - hero — husk, **gold katana**, full heavy_golden.
+  - soldier ×2 — husk, **gold glaive** и **gold claymore**, heavy_golden по частям.
+  - archer — **`variantsandventures:parched`**, **bow**, full chainedleather.
+  - peasant — husk, iron sword.
+- **`ocean`** (ocean/warm/lukewarm/deep, river, beach; shipwreck, ocean_ruin,
+  nova_structures:conduit_ruin):
+  - hero — drowned, **trident**, full `armory_bridge:heavy_copper_*`.
+  - soldier ×2 — drowned, iron sword/axe, heavy_copper по частям.
+  - archer — drowned, **bow**. peasant — drowned, iron sword.
+- **`ancient_city`** (underground only, warden targeting):
+  - hero — zombie, **diamond katana**, full `create_deep_dark:echo_armor_*`.
+  - soldier ×2 — zombie, **diamond glaive** и **diamond claymore**, echo по частям.
+  - archer ×2 — skeleton, **crossbow** и **bow** (без брони).
 
-4. **Утопленники не умеют стрелять из лука.**
-   Баг в `AncientRangedGoal`/`RangedAIHandler` (стрельба из лука у дрowned).
+### 4.3 Скелеты-ближники в отрядах — `skeletonMelee` (F2, итоги правок)
+- `enabled: true`, `chance: 0.25`,
+  `replaceEntities: ["minecraft:zombie"]`,
+  `skeletonEntity: "minecraft:skeleton"`,
+  `applyTo: ["hero", "soldier", "peasant"]`.
+- **Механика (после итоговых правок):**
+  1. Ближние роли отряда (hero/soldier/peasant) вооружаются **по столу оружия
+     скелета** из §3 (правило 12). **Приоритет двуручному оружию** — вес
+     двуручного в `weapons` = **2**, одноручного = **1**.
+  2. Лук/арбалет/мукет исключены из ближнего ролла.
+  3. Слоты зомби в составе отряда могут заменяться на **скелетов как ближних
+     мобов** с вероятностью 0.25 — **без трансформации сущностей** (просто другой
+     entity в слоте). Броня и оружие — те же, что у зомби-рола.
+  4. Археры (archer role) из ролла вооружения исключены.
+- `weapons` (итоговый стол): двуручные (вес 2) — claymore, glaive, greataxe,
+  greathammer, scythe (iron + gold); одноручные (вес 1) — cutlass, katana, rapier
+  (iron + gold). Шансы соответствуют оригиналу: для равных шансов все веса
+  можно поставить в 1.
 
-5. **Отряды в пустыне спавняются без скелетов (без дальних юнитов).**
-   Archer пустыни = `variantsandventures:parched` (optional dependency). Если V&V
-   не установлен — `parched` не разрешается → дальний юнит не спавнится.
-   Нужно сделать дальний юнит гарантированным (fallback на скелет) или проверить
-   наличие V&V.
+### 4.4 Ремап брони — `armorRemap` (F3)
+- По температуре биома: cold / temperate / hot / mesa / nether —
+  `heavy_iron` → copper/iron/golden с шансовыми распределениями.
+- Окисление меди: wet/dry/alwaysOxidizedBiomes — вероятность oxidation
+  base/exposed/weathered/oxidized.
 
-6. **Отряды в древнем городе не имеют никакой защиты.**
-   Броня hero/soldier Древнего города = `create_deep_dark:echo_armor_*` (optional
-   dependency). Если Create: Deep Dark не установлен — echo-броня не разрешается →
-   защита нулевая. Нужно fallback на ванильную diamond/netherite или проверить dep.
+### 4.5 HP-бафф — `hpBuff` (F4)
+- `enabled: true`, `percent: 0.1`, `min: 1.0`. +10% maxHP нежити, только в
+  64 блоках от деревни (не boost-all).
 
-7. **Алмазные и выше доспехи в принципе не появляются никогда.**
-   Топ-тиры (`LocalDifficultySpawner`) спавнят netherite/diamond/echo/siftite при
-   эффективной сложности ≥ порога (`mindifficulty 3.0`), chancePerSlot = 0.004.
-   Возможно: мир лёгкий/новый (порог не достигается), шансы слишком низкие, или
-   баг. Проверить логику и достижимость порога.
+### 4.6 Странники — `wanderers` (F8)
+- `enabled: true`, `scanIntervalTicks: 200`, `detectionRadius: 64`,
+  `chance: 0.1`, `biomes: []`.
+- Castes: soldier (вес 60) — zombie, iron glaive, heavy_iron helmet+chest;
+  hero (вес 40) — zombie, iron katana, full heavy_iron.
+
+### 4.7 Остальные механики
+- **`ruinBuff`** (F9): `countMultiplier: 1.5` (cap 32), структуры-руины
+  (ruined_portal, nova_structures hamlet/wild_ruin/well_oak,
+  terralith:fortified_village).
+- **`effects`**: сила (strength) amp 0, chance 0.1 на zombie/skeleton/husk/drowned.
+- **`march`** (F10): `triggerRadius: 128`, spawnMin/Max 64/96,
+  `appliesTo: ["plains", "desert"]`.
+- **`warden`** (F7): enabled — targeting для древнего города.
+- **`animation`** (F6): durationTicks 45, particleCount 6, sound.
 
 ---
 
-## 6. Ключевой технический контекст
+## 5. Задачи на подтвержение (баги из игре — все невыполненные)
 
-### 6.1 1.21.1 API (проверенные решения — не перепроверять с нуля, но учитывать)
-- `ResourceKey` — **`net.minecraft.resources`** (не `core`).
-- `level.registryAccess().lookupOrThrow(Registries.STRUCTURE)` →
-  `HolderLookup.RegistryLookup<T>`; `registry.get(ResourceKey.create(...))` →
-  `Optional<Holder<Reference<T>>` → `.map(Holder::value)`.
-- `ResourceKey.create` — **2-arg**.
-- `Goal`: `canUse()`, `canContinueToUse()`, `tick()`, `stop()`, `requiresUpdateEveryTick()`.
-- `mob.level()` (не `getLevel()`); `getItemBySlot`/`setItemSlot`; `setPersistenceRequired()`.
-- Пarticles: `net.minecraft.core.particles.*`; `ParticleType` не `ParticleOptions`.
-- `computeIfAbsent` 2-arg; `NearestAttackableTargetGoal` 3-arg; `ChunkAccess.getAllStarts()`.
-- `Registry.getKey(T)` → `ResourceLocation` напрямую (не Optional).
-
-### 6.2 Brigadier (команды) — из几次 compile-fix
-- Считывать аргументы: **`ctx.getArgument(name, Class)`** (НЕ
-  `StringArgumentType.getArgument` — такого статического метода нет).
-- `RequiredArgumentBuilder.defaultValue(T)` **недоступен** в этой версии — реализовать
-  ветку без count + ветку с count.
-- `CommandSourceStack.sendSuccess(Supplier<Component>, boolean)` — заворачивать в лямбду.
-- `sendFailure(Component)` — напрямую.
-- Уровень: **`source.getLevel()`** (ServerLevel); игрок — **`source.getPlayer()`**
-  (nullable, не бросает). `CommandSyntaxException` **не разрешается** в этой
-  сборке Brigadier — избегать явного импорта/`throws`.
-- Уровень разрешения команд: 2 (OP).
-
-### 6.3 Рефлексия goals
-- `goalSelector`/`targetSelector` — protected. Использовать `MobGoals.addGoal`
-  (рефлексия). Не вызывать напрямую.
-
-### 6.4 Компиляция
-- **В песочнице нет JDK** — локальная сборка невозможна. Пользователь компилирует
-  на своей машине (`.\gradlew.bat build`) и присылает тексты ошибок. Все compile-fix
-  делались по присланным сообщениям. **Перед любым commit — проверять, что ошибки
-  сборки устранены.**
-
-### 6.5 Convention
-- Изменения — **на `main`**, не на отдельном branch.
-- Commit-ить и push (`git push origin HEAD:main`).
-- Конфиг редактируется без пересборки (Gson).
+1. **Команда тестирования портальных странников** — нужна
+   (`wanderers` castes из §4.6); на данный момент есть только отряды и мобы.
+2. **`spawn mob` вызывает мобов без брони и оружия** — нужна экипировка
+   (InControl экипирует на `finalize`, что не срабатывает при `addFreshEntity`).
+3. **Скелеты с арбалетами заряжают, но не стреляют.**
+4. **Утопленники не стреляют из лука.**
+5. **Пустынные отряды спавнятся без дальних юнитов** (archer =
+   `variantsandventures:parched` — optional dependency).
+6. **Отряды древнего города без защиты** (echo-броня — optional dependency).
+7. **Алмазные и выше доспехи никогда не появляются** — проверить достижимость
+   порога сложности (§4.1) и шансы 0.004.
 
 ---
 
-## 7. Что делать следующей сессии (порядок)
+## 6. Ключевые файлы (справочно)
 
-1. Перечитать этот handoff + `PLAN.md`.
-2. Перепроверить current state: `git log origin/main` (tip `06a1a03`), файлы на месте.
-3. Взять задачи из §5 по приоритету и исправить:
-   - Сначала **баги стрелкового AI (3, 4)** — ядро `AncientRangedGoal`/`RangedAIHandler`.
-   - Затем **гарантированная экипировка/дальние юниты (2, 5, 6)** — fallback при
-     отсутствии optional-dependency.
-   - **Топ-тиры (7)** — проверить достижимость порога и шансы.
-   - **Команда странников (1)** — добавить.
-4. При каждом изменении — убедиться в compile (по присланному логу) и commit/push на `main`.
-5. Сообщить пользователю, что всё считается неподтверждённым до его проверки в игре.
+- `config/incontrol/spawn.json` — присланная в первом сообщении версия (§3).
+- `config/ancient_civilization.json` — конфиг мода: механики спавна (§4).
+- `ancient_civilization/src/main/java/com/ancientcivilization/`:
+  - `command/SpawnTestCommands.java` — команды тестирования (§2.12).
+  - `spawn/AncientRangedGoal.java` + `RangedAIHandler.java` — стрелковый AI (§2.13:3–4).
+  - `spawn/EquipmentApplier.java`, `spawn/ArmorRemapper.java`,
+    `spawn/LocalDifficultySpawner.java` — экипировка/топ-tier (§2.13:2,6,7).
+  - `squad/SquadService.java` — движок отрядов + скелеты-ближники (§4.2–4.3).
+  - `wanderer/WandererService.java` — странники (§2.13:1).
