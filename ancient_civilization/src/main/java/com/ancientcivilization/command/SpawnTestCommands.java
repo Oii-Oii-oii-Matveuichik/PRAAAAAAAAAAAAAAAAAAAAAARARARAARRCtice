@@ -52,29 +52,27 @@ public final class SpawnTestCommands {
                 .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("spawn")
                         .then(Commands.literal("squad")
+                                // Without an explicit count -> single squad (count = 1).
+                                .then(Commands.argument("type", StringArgumentType.string())
+                                        .executes(ctx -> summonSquad(ctx.getSource(),
+                                                StringArgumentType.getArgument(ctx, "type"), 1)))
+                                // With an explicit count.
                                 .then(Commands.argument("type", StringArgumentType.string())
                                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 16))
-                                                .defaultValue(1)
-                                                .executes(ctx -> {
-                                                    String typeId = StringArgumentType.getArgument(ctx, "type");
-                                                    int count = IntegerArgumentType.getArgument(ctx, "count");
-                                                    if (typeId.equals("all")) {
-                                                        return summonAllSquads(ctx.getSource(), count);
-                                                    }
-                                                    return summonSquad(ctx.getSource(), typeId, count);
-                                                }))))
+                                                .executes(ctx -> summonSquad(ctx.getSource(),
+                                                        StringArgumentType.getArgument(ctx, "type"),
+                                                        IntegerArgumentType.getArgument(ctx, "count"))))))
                         .then(Commands.literal("mob")
+                                // Without an explicit count -> single mob (count = 1).
+                                .then(Commands.argument("entity", StringArgumentType.string())
+                                        .executes(ctx -> summonMob(ctx.getSource(),
+                                                StringArgumentType.getArgument(ctx, "entity"), 1)))
+                                // With an explicit count.
                                 .then(Commands.argument("entity", StringArgumentType.string())
                                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                                .defaultValue(1)
-                                                .executes(ctx -> {
-                                                    String entityId = StringArgumentType.getArgument(ctx, "entity");
-                                                    int count = IntegerArgumentType.getArgument(ctx, "count");
-                                                    if (entityId.equals("all")) {
-                                                        return summonAllMobs(ctx.getSource(), count);
-                                                    }
-                                                    return summonMob(ctx.getSource(), entityId, count);
-                                                }))))));
+                                                .executes(ctx -> summonMob(ctx.getSource(),
+                                                        StringArgumentType.getArgument(ctx, "entity"),
+                                                        IntegerArgumentType.getArgument(ctx, "count"))))))));
     }
 
     // ------------------------------------------------------------------
@@ -100,14 +98,14 @@ public final class SpawnTestCommands {
             return 0;
         }
         ServerPlayer player = source.getPlayerOrException();
-        ServerLevel level = player.getLevel();
+        ServerLevel level = source.getLevel();
         int summoned = 0;
         for (int i = 0; i < count; i++) {
             BlockPos center = scatter(level, player.blockPosition());
             SquadService.get(level).summon(type, center);
             summoned++;
         }
-        source.sendSuccess(Component.literal(
+        source.sendSuccess(() -> Component.literal(
                 "Summoned '" + typeId + "' squad x" + summoned + " near " + player.blockPosition().toShortString()), true);
         return 1;
     }
@@ -119,7 +117,7 @@ public final class SpawnTestCommands {
             return 0;
         }
         ServerPlayer player = source.getPlayerOrException();
-        ServerLevel level = player.getLevel();
+        ServerLevel level = source.getLevel();
         List<String> ids = new ArrayList<>();
         int summoned = 0;
         for (ModConfig.SquadType type : config.squads.types) {
@@ -130,7 +128,7 @@ public final class SpawnTestCommands {
             }
             ids.add(type.id);
         }
-        source.sendSuccess(Component.literal(
+        source.sendSuccess(() -> Component.literal(
                 "Summoned squads x" + summoned + " of every type [" + String.join(", ", ids) + "]"), true);
         return 1;
     }
@@ -156,8 +154,8 @@ public final class SpawnTestCommands {
             return 0;
         }
         ServerPlayer player = source.getPlayerOrException();
-        int summoned = spawnMobs(player.getLevel(), type, player, count);
-        source.sendSuccess(Component.literal(
+        int summoned = spawnMobs(source.getLevel(), type, player, count, entityId);
+        source.sendSuccess(() -> Component.literal(
                 "Summoned " + summoned + "x " + entityId + " near " + player.blockPosition().toShortString()), true);
         return summoned > 0 ? 1 : 0;
     }
@@ -177,15 +175,15 @@ public final class SpawnTestCommands {
             if (type == null) {
                 continue;
             }
-            summoned += spawnMobs(player.getLevel(), type, player, count);
+            summoned += spawnMobs(source.getLevel(), type, player, count, id);
         }
-        source.sendSuccess(Component.literal(
+        source.sendSuccess(() -> Component.literal(
                 "Summoned " + summoned + " mobs (" + ids.size() + " types: " + String.join(", ", ids) + ")"), true);
         return summoned > 0 ? 1 : 0;
     }
 
     /** Core mob spawn: create, scatter slightly around the player, let the join event process it. */
-    private static int spawnMobs(ServerLevel level, EntityType<?> type, ServerPlayer player, int count) {
+    private static int spawnMobs(ServerLevel level, EntityType<?> type, ServerPlayer player, int count, String label) {
         int summoned = 0;
         for (int i = 0; i < count; i++) {
             try {
@@ -202,7 +200,7 @@ public final class SpawnTestCommands {
                 level.addFreshEntity(entity);
                 summoned++;
             } catch (Exception e) {
-                LOGGER.warn("Failed to summon {}: {}", type.getRegistryName(), e.getMessage());
+                LOGGER.warn("Failed to summon {}: {}", label, e.getMessage());
             }
         }
         return summoned;
