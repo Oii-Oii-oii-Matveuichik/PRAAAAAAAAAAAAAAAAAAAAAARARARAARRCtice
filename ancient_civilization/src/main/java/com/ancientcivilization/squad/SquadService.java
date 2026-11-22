@@ -114,14 +114,16 @@ public final class SquadService {
         BlockPos pos = spawnPos.get();
         boolean boosted = isNearStructure(type, pos);
         boolean inRuins = isInRuins(pos);
+        final boolean marchingFinal = marching;
+        final BlockPos marchTargetFinal = marchTarget;
         ModConfig.Animation animConfig = ModConfig.INSTANCE.animation;
         BlockState digBlock = chooseDigBlock(pos);
 
         if (animConfig.enabled) {
             animations.add(new SquadAnimation(level, pos, digBlock, animConfig,
-                    () -> spawnSquad(type, pos, boosted, inRuins, marching, marchTarget)));
+                    () -> spawnSquad(type, pos, boosted, inRuins, marchingFinal, marchTargetFinal)));
         } else {
-            spawnSquad(type, pos, boosted, inRuins, marching, marchTarget);
+            spawnSquad(type, pos, boosted, inRuins, marchingFinal, marchTargetFinal);
         }
 
         data.putTimer(type.id, 0L);
