@@ -4,9 +4,10 @@ import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.EquipmentApplier;
 import com.ancientcivilization.spawn.StructureLookup;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.ResourceKey;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.core.registries.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,7 +42,7 @@ public final class WandererService {
     private WandererService(ServerLevel level) {
         this.level = level;
         this.data = level.getDataStorage().computeIfAbsent(
-                WandererSaveData.TYPE, "ancient_civilization:wanderers", WandererSaveData::new);
+                WandererSaveData.TYPE, "ancient_civilization:wanderers");
     }
 
     public static WandererService get(ServerLevel level) {
@@ -101,14 +102,14 @@ public final class WandererService {
 
     private Set<Structure> portalStructures() {
         if (portalStructures == null) {
-            Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+            var registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
             Set<Structure> found = new HashSet<>();
             for (String id : List.of(
                     "minecraft:ruined_portal", "minecraft:ruined_portal_desert",
                     "minecraft:ruined_portal_nether", "minecraft:ruined_portal_underground")) {
                 ResourceLocation location = ResourceLocation.tryParse(id);
                 if (location != null) {
-                    registry.getOptional(location).ifPresent(found::add);
+                    registry.get(ResourceKey.create(Registries.STRUCTURE, location)).map(Holder::value).ifPresent(found::add);
                 }
             }
             portalStructures = found;

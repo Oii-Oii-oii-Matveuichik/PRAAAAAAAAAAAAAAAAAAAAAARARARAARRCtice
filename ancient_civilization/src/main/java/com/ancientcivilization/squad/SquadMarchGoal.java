@@ -29,7 +29,7 @@ public class SquadMarchGoal extends Goal {
     }
 
     @Override
-    public boolean canContinue() {
+    public boolean canContinueToUse() {
         return !finished && !nearTarget();
     }
 

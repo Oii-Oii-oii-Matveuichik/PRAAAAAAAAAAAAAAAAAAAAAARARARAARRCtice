@@ -3,9 +3,8 @@ package com.ancientcivilization.spawn;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.Goal;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.projectile.AbstractArrow;
-import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -117,7 +116,7 @@ public class AncientRangedGoal extends Goal {
     }
 
     private void fireArrow(LivingEntity target, ItemStack weapon) {
-        if (!(mob.getLevel() instanceof ServerLevel level)) {
+        if (!(mob.level() instanceof ServerLevel level)) {
             return;
         }
         ItemStack projectile = mob.getProjectile(weapon);
@@ -126,7 +125,7 @@ public class AncientRangedGoal extends Goal {
         double dy = target.getY(0.3333333333333333D) - arrow.getY();
         double dz = target.getZ() - mob.getZ();
         double dist = Math.sqrt(dx * dx + dz * dz);
-        Projectile.spawnProjectileUsingShoot(arrow, level, projectile,
-                dx, dy + dist * 0.2F, dz, 1.6F, (float) (14 - level.getDifficulty().getId() * 4));
+        arrow.shoot(dx, dy + dist * 0.2F, dz, 1.6F, (float) (14 - level.getDifficulty().getId() * 4));
+        level.addFreshEntity(arrow);
     }
 }

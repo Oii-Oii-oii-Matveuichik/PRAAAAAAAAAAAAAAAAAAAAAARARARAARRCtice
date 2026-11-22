@@ -6,9 +6,10 @@ import com.ancientcivilization.spawn.MobGoals;
 import com.ancientcivilization.spawn.StructureLookup;
 import com.ancientcivilization.spawn.WardenTargeting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.ResourceKey;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.core.registries.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -48,7 +49,7 @@ public final class SquadService {
     private SquadService(ServerLevel level) {
         this.level = level;
         this.data = level.getDataStorage().computeIfAbsent(
-                SquadSaveData.TYPE, "ancient_civilization:squads", SquadSaveData::new);
+                SquadSaveData.TYPE, "ancient_civilization:squads");
     }
 
     public static SquadService get(ServerLevel level) {
@@ -319,12 +320,12 @@ public final class SquadService {
     }
 
     private Set<Structure> resolveStructures(List<String> ids) {
-        Registry<Structure> registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        var registry = level.registryAccess().lookupOrThrow(Registries.STRUCTURE);
         Set<Structure> found = new HashSet<>();
         for (String id : ids) {
             ResourceLocation location = ResourceLocation.tryParse(id);
             if (location != null) {
-                registry.getOptional(location).ifPresent(found::add);
+                registry.get(ResourceKey.create(Registries.STRUCTURE, location)).map(Holder::value).ifPresent(found::add);
             }
         }
         return found;
@@ -336,7 +337,9 @@ public final class SquadService {
             return null;
         }
         return level.registryAccess().lookupOrThrow(Registries.STRUCTURE)
-                .getOptional(location).orElse(null);
+                .get(ResourceKey.create(Registries.STRUCTURE, location))
+                .map(Holder::value)
+                .orElse(null);
     }
 
     // ------------------------------------------------------------------

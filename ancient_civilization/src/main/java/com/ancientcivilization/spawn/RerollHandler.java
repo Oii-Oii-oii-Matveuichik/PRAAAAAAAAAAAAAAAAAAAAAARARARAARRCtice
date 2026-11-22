@@ -71,7 +71,7 @@ public final class RerollHandler {
             replacement.setPos(mob.getX(), mob.getY(), mob.getZ());
             replacement.setYRot(mob.getYRot());
             replacement.setXRot(mob.getXRot());
-            replacement.setPersistenceRequired();
+            replacementMob.setPersistenceRequired();
             level.addFreshEntity(replacement);
             LOGGER.debug("Rerolled {} -> {} at {}", source, targetId, mob.blockPosition().toShortString());
             return true;

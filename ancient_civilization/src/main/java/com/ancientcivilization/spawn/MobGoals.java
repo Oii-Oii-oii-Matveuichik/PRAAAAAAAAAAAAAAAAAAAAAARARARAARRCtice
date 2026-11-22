@@ -1,7 +1,7 @@
 package com.ancientcivilization.spawn;
 
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.ai.Goal;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.GoalSelector;
 
 import java.lang.reflect.Field;

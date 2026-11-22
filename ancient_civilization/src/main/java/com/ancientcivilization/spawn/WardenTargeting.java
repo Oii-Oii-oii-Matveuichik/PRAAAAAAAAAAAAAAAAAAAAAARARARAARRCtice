@@ -33,22 +33,9 @@ public final class WardenTargeting {
         for (String tag : warden.getTags()) {
             if (tag.startsWith("ancient_civilization:squad_")) {
                 MobGoals.addTargetGoal(warden, 2,
-                        new NearestAttackableTargetGoal<>(
-                                warden,
-                                LivingEntity.class,
-                                true,
-                                (entity, level) -> isSquadMember(entity)));
+                        new NearestAttackableTargetGoal<>(warden, LivingEntity.class, true));
                 return;
             }
         }
-    }
-
-    private static boolean isSquadMember(LivingEntity entity) {
-        for (String tag : entity.getTags()) {
-            if (tag.startsWith("ancient_civilization:squad_")) {
-                return true;
-            }
-        }
-        return false;
     }
 }
