@@ -43,7 +43,7 @@
 - **F2.** Реролл «ближник → скелет-тип» (25%): zombie→skeleton, husk→parched, drowned→murk, gelid→stray, thicket→verdant; wither_skeleton — без реролла. Замена сущности с переносом экипировки (защита от повторного срабатывания — маркер NBT).
 - **F3.** Ремап heavy_iron → heavy_copper/heavy_iron/heavy_golden по температуре биома (веса §4) + стадия окисления меди по влажности.Heavy diamond/netherite/echo/siftite — не трогает.
 - **F4.** Бафф ХП: 10% (и на отряды), равномерно 1..+50% maxHP, attribute modifier.
-- **F5.** ИИ стрелков: арбалет у скелетов (mixin `CrossbowUser` + `CrossbowAttackGoal`), лук у утопленников/мурков (`RangedBowAttackGoal` при луке).
+- **F5.** ИИ стрелков: арбалет у скелетов, лук у утопленников/мурков — **самостоятельный goal** `AncientRangedGoal` (зарядка + выстрел по vanilla-паттерну `AbstractSkeleton.performRangedAttack`: `ProjectileUtil.getMobArrow` + `Projectile.spawnProjectileUsingShoot`). Миксин-интерфейсы отменены (см. §5).
 - **F6.** Движок событийных отрядов (таймер→спавн→сброс) + 4 отряда (§6).
 - **F7.** Варден-приоритет для отряда Древнего города (§7).
 - **F8.** Заблудшие странники на руинах порталов (один ролл на структуру, SavedData) (§8).
@@ -79,8 +79,10 @@
 
 ## 3. ИИ стрелков (F5)
 
-- Арбалет у скелетов: mixin `CrossbowUser` на `AbstractSkeleton` + адаптация `CrossbowAttackGoal` → тир стрелков работает.
-- Лук у утопленников/мурков: `RangedBowAttackGoal` при луке в руке.
+- Реализовано **без миксинов**: самостоятельный goal `com.ancientcivilization.spawn.AncientRangedGoal`, добавляемый `RangedAIHandler` при появлении мобов (скелет-семья `AbstractSkeleton`, утопленник-семья `Drowned`).
+- Зарядка weapon: `mob.startUsingItem(MAIN_HAND)`, на выходе `releaseUsingItem()`; выстрел по vanilla-паттерну `AbstractSkeleton.performRangedAttack`: `ProjectileUtil.getMobArrow(mob, проекция, 1.6F, weapon)` + `Projectile.spawnProjectileUsingShoot(arrow, ServerLevel, ItemStack, dx, dy+d*0.2, dz, 1.6F, inaccuracy)`.
+- Goal самоотключается, если в руке нет `Items.BOW`/`Items.CROSSBOW`; приоритет 4.
+- Поскольку `goalSelector`/`targetSelector` — `protected` на `Mob`, добавление идёт через reflection-bridge `MobGoals`.
 - Мушкет — флейвор (ИИ под мобов у Iron's Artifice нет).
 - Откат, если арбалетная реализация кривая: убрать арбалет из столов.
 
@@ -176,7 +178,7 @@ Local difficulty (minecraft.wiki): Easy 0.75–1.5, Normal 1.5–4.0, Hard 2.25�
 
 ## 12. Реализация мода `ancient_civilization/` (1.21.1 NeoForge)
 
-Исходники: skeleton Gradle (`net.neoforged.neoform`, NeoForge `21.11.219`, JDK 21), `mods.toml`, Gson-конфиг `config/ancient_civilization.json`. Все API проверены по исходникам NeoForge 21.11 + Yarn 1.21.1 (`BlockParticleOptions(ParticleType, BlockState)`, `InteractionHand` = `net.minecraft.world`, `EntityJoinLevelEvent` — InControl экипирует на LOWEST, поэтому наш хук на NORMAL).
+Исходники: skeleton Gradle (`net.neoforged.moddev` 2.0.148, NeoForge `21.1.267`, JDK 21), `neoforge.mods.toml`, Gson-конфиг `config/ancient_civilization.json`. Все API проверены по vanilla-исходникам 1.21.1 (`DevPaimonSoft/RelakeReborn`, branch `main`): `Registry` = `net.minecraft.core`, `lookupOrThrow` (не `registryOrThrow`), `SavedData.Factory` (не `SavedDataType`), `getItemBySlot` (не `getItemSlot`), `Registry.getKey` → `ResourceLocation` напрямую, `AttributeModifier` — record, `canSeeSky`, `getRegisteredName`, `setPersistenceRequired()` без аргумента, `BlockParticleOption`, непрефиксные `SoundEvents.*_BREAK`, `InteractionHand` = `net.minecraft.world`, `EntityJoinLevelEvent` — InControl экипирует на LOWEST, поэтому наш хук на NORMAL.
 
 ### 12.1 Local difficulty по уровням сложности (новое)
 - `localDifficulty.enabled`, `levels.{easy,normal,hard}.{enabled,threshold}` — порог сверживается с `getEffectiveDifficulty()` (raw regional difficulty, как и InControl).
@@ -203,7 +205,7 @@ Local difficulty (minecraft.wiki): Easy 0.75–1.5, Normal 1.5–4.0, Hard 2.25�
 - **F2 реролл** (`reroll`): ближник → скелет-тип 25%, экипировка переносится, замена + cancel join (замена — скелет-тип, не рероллится).
 - **F3 ремап/окисление** (`armorRemap`): `heavy_iron_*` → copper/iron/golden по температуре биома (холод/умер/жар/меса/незер, веса §4); меди — стадия по влажности (always oxidized: утопленник/мурк, Древний город, болото; wet/temperate/dry веса base/exposed/weathered/oxidized). Трогает только heavy-tier; diamond/netherite/echo/siftite — не трогает.
 - **F4 бафф ХП** (`hpBuff`): 10% maxHP на 12 мобов нежити включая V&V и отряды; илладжеры/криперы/варден — не трогает.
-- **F5 стрелки** (миксин `META-INF/mixins.json`): скелеты с арбалетом стреляют (`AbstractSkeletonCrossbowMixin` → `CrossbowAttackMob` + `RangedCrossbowAttackGoal`; лук не тронут); утопленники/мурки с луком (`AbstractDrownedRangedMixin` → `RangedAttackMob` + `RangedBowAttackGoal`). Голы самоотключаются по держанному оружию.
+- **F5 стрелки** (без миксинов): `AncientRangedGoal` (приоритет 4, от `RangedAIHandler` при появлении) — скелеты с арбалетом и утопленники/мурки с луком стреляют по vanilla-паттерну; goal самоотключается по держанному оружию. Миксин-файлы и `ancientcivilization.mixins.json` удалены.
 - **F7 варден** (`warden`): члены отряда Древнего города — приоритет 1 по вардену (равно приоритету игрока, ближайший выигрывает).
 - **F8 странники** (`wanderers`): руины порталов (4 ID), один ролл на инстанс (SavedData, навсегда), **10% на каждый портал**, каст-ролл только soldier/hero (60/40), спавн у портала.
 - **F9 буст**: timer boosted рядом со структурой + тег `boosted`.
