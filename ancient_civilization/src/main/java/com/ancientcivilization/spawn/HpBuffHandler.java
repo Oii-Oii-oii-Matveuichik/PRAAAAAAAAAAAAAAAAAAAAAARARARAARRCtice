@@ -48,7 +48,7 @@ public final class HpBuffHandler {
             return;
         }
         double value = Math.max(config.hpBuff.min, attribute.getValue() * config.hpBuff.percent);
-        attribute.addPermanentModifier(new AttributeModifier(
+        attribute.addOrReplacePermanentModifier(new AttributeModifier(
                 ResourceLocation.tryParse("ancient_civilization:hp_buff"),
                 value,
                 AttributeModifier.Operation.ADD_VALUE));
