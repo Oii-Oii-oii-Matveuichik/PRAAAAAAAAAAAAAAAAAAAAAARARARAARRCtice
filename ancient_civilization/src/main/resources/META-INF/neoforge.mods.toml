@@ -18,7 +18,7 @@ surface-only squad spawns, local-difficulty-gated top tiers.
 [[dependencies.ancient_civilization]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21.11,)"
+versionRange = "[21.1,)"
 ordering = "NONE"
 side = "BOTH"
 
