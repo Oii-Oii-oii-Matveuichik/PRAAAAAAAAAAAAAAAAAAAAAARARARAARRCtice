@@ -4,7 +4,6 @@ import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.LocalDifficultySpawner;
 import com.ancientcivilization.squad.SquadService;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.CommandSyntaxException;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -80,7 +79,7 @@ public final class SpawnTestCommands {
     // Squads
     // ------------------------------------------------------------------
 
-    private static int summonSquad(CommandSourceStack source, String typeId, int count) throws CommandSyntaxException {
+    private static int summonSquad(CommandSourceStack source, String typeId, int count) {
         if (typeId.equals("all")) {
             return summonAllSquads(source, count);
         }
@@ -101,7 +100,11 @@ public final class SpawnTestCommands {
                     "Unknown squad type '" + typeId + "'. Available: " + squadIds(config)));
             return 0;
         }
-        ServerPlayer player = source.getPlayerOrException();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This command must be run by a player"));
+            return 0;
+        }
         ServerLevel level = source.getLevel();
         int summoned = 0;
         for (int i = 0; i < count; i++) {
@@ -115,13 +118,17 @@ public final class SpawnTestCommands {
         return 1;
     }
 
-    private static int summonAllSquads(CommandSourceStack source, int count) throws CommandSyntaxException {
+    private static int summonAllSquads(CommandSourceStack source, int count) {
         ModConfig config = ModConfig.INSTANCE;
         if (config == null || config.squads.types.isEmpty()) {
             source.sendFailure(Component.literal("No squad types configured"));
             return 0;
         }
-        ServerPlayer player = source.getPlayerOrException();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This command must be run by a player"));
+            return 0;
+        }
         ServerLevel level = source.getLevel();
         List<String> ids = new ArrayList<>();
         int summoned = 0;
@@ -151,7 +158,7 @@ public final class SpawnTestCommands {
     // Mobs
     // ------------------------------------------------------------------
 
-    private static int summonMob(CommandSourceStack source, String entityId, int count) throws CommandSyntaxException {
+    private static int summonMob(CommandSourceStack source, String entityId, int count) {
         if (entityId.equals("all")) {
             return summonAllMobs(source, count);
         }
@@ -162,20 +169,28 @@ public final class SpawnTestCommands {
             source.sendFailure(Component.literal("Unknown entity type '" + entityId + "'"));
             return 0;
         }
-        ServerPlayer player = source.getPlayerOrException();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This command must be run by a player"));
+            return 0;
+        }
         int summoned = spawnMobs(source.getLevel(), type, player, count, entityId);
         source.sendSuccess(() -> Component.literal(
                 "Summoned " + summoned + "x " + entityId + " near " + player.blockPosition().toShortString()), true);
         return summoned > 0 ? 1 : 0;
     }
 
-    private static int summonAllMobs(CommandSourceStack source, int count) throws CommandSyntaxException {
+    private static int summonAllMobs(CommandSourceStack source, int count) {
         Set<String> ids = allMobIds();
         if (ids.isEmpty()) {
             source.sendFailure(Component.literal("No mob types found for this mod"));
             return 0;
         }
-        ServerPlayer player = source.getPlayerOrException();
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.literal("This command must be run by a player"));
+            return 0;
+        }
         int summoned = 0;
         for (String id : ids) {
             ResourceLocation location = ResourceLocation.tryParse(id);
