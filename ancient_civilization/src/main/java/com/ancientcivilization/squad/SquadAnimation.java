@@ -94,7 +94,7 @@ public class SquadAnimation {
                 double x = pos.getX() + 0.5 + (RANDOM.nextDouble() - 0.5) * 1.6;
                 double z = pos.getZ() + 0.5 + (RANDOM.nextDouble() - 0.5) * 1.6;
                 double y = pos.getY() + 0.2 + t * 2.5;
-                level.addParticle(ParticleTypes.FALLING_DUST,
+                level.addParticle(new BlockParticleOption(ParticleTypes.FALLING_DUST, digBlock),
                         x, y, z,
                         (RANDOM.nextDouble() - 0.5) * 0.1,
                         0.06,
