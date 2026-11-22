@@ -55,24 +55,24 @@ public final class SpawnTestCommands {
                                 // Without an explicit count -> single squad (count = 1).
                                 .then(Commands.argument("type", StringArgumentType.string())
                                         .executes(ctx -> summonSquad(ctx.getSource(),
-                                                StringArgumentType.getArgument(ctx, "type"), 1)))
+                                                ctx.getArgument("type", String.class), 1)))
                                 // With an explicit count.
                                 .then(Commands.argument("type", StringArgumentType.string())
                                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 16))
                                                 .executes(ctx -> summonSquad(ctx.getSource(),
-                                                        StringArgumentType.getArgument(ctx, "type"),
-                                                        IntegerArgumentType.getArgument(ctx, "count"))))))
+                                                        ctx.getArgument("type", String.class),
+                                                        ctx.getArgument("count", Integer.class))))))
                         .then(Commands.literal("mob")
                                 // Without an explicit count -> single mob (count = 1).
                                 .then(Commands.argument("entity", StringArgumentType.string())
                                         .executes(ctx -> summonMob(ctx.getSource(),
-                                                StringArgumentType.getArgument(ctx, "entity"), 1)))
+                                                ctx.getArgument("entity", String.class), 1)))
                                 // With an explicit count.
                                 .then(Commands.argument("entity", StringArgumentType.string())
                                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                                 .executes(ctx -> summonMob(ctx.getSource(),
-                                                        StringArgumentType.getArgument(ctx, "entity"),
-                                                        IntegerArgumentType.getArgument(ctx, "count"))))))));
+                                                        ctx.getArgument("entity", String.class),
+                                                        ctx.getArgument("count", Integer.class))))))));
     }
 
     // ------------------------------------------------------------------
