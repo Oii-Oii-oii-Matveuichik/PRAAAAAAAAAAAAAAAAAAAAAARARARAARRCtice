@@ -294,16 +294,30 @@
       }
     ]
   },
-  "reroll": {
+  "skeletonMelee": {
     "enabled": true,
     "chance": 0.25,
-    "mapping": {
-      "minecraft:zombie": "minecraft:skeleton",
-      "minecraft:husk": "variantsandventures:parched",
-      "minecraft:drowned": "variantsandventures:murk",
-      "variantsandventures:gelid": "minecraft:stray",
-      "variantsandventures:thicket": "variantsandventures:verdant"
-    }
+    "replaceEntities": ["minecraft:zombie"],
+    "skeletonEntity": "minecraft:skeleton",
+    "applyTo": ["hero", "soldier", "peasant"],
+    "weapons": [
+      { "item": "simplyswords:iron_claymore", "weight": 2 },
+      { "item": "simplyswords:gold_claymore", "weight": 2 },
+      { "item": "simplyswords:iron_glaive", "weight": 2 },
+      { "item": "simplyswords:gold_glaive", "weight": 2 },
+      { "item": "simplyswords:iron_greataxe", "weight": 2 },
+      { "item": "simplyswords:gold_greataxe", "weight": 2 },
+      { "item": "simplyswords:iron_greathammer", "weight": 2 },
+      { "item": "simplyswords:gold_greathammer", "weight": 2 },
+      { "item": "simplyswords:iron_scythe", "weight": 2 },
+      { "item": "simplyswords:gold_scythe", "weight": 2 },
+      { "item": "simplyswords:iron_cutlass", "weight": 1 },
+      { "item": "simplyswords:gold_cutlass", "weight": 1 },
+      { "item": "simplyswords:iron_katana", "weight": 1 },
+      { "item": "simplyswords:gold_katana", "weight": 1 },
+      { "item": "simplyswords:iron_rapier", "weight": 1 },
+      { "item": "simplyswords:gold_rapier", "weight": 1 }
+    ]
   },
   "armorRemap": {
     "enabled": true,

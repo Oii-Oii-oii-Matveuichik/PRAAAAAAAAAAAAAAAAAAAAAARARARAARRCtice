@@ -5,7 +5,6 @@ import com.ancientcivilization.spawn.EffectsHandler;
 import com.ancientcivilization.spawn.HpBuffHandler;
 import com.ancientcivilization.spawn.LocalDifficultySpawner;
 import com.ancientcivilization.spawn.RangedAIHandler;
-import com.ancientcivilization.spawn.RerollHandler;
 import com.ancientcivilization.squad.SquadService;
 import com.ancientcivilization.wanderer.WandererService;
 import net.minecraft.server.level.ServerLevel;
@@ -32,12 +31,6 @@ public final class CommonEvents {
         // Only mobs — players, villagers and other living entities must stay untouched
         // (armor remap / effects would otherwise alter player loadouts on join).
         if (!(event.getEntity() instanceof Mob mob)) {
-            return;
-        }
-
-        // F2 first: a replaced mob cancels this join; the replacement gets its own join.
-        if (RerollHandler.tryReroll(level, mob)) {
-            event.setCanceled(true);
             return;
         }
 

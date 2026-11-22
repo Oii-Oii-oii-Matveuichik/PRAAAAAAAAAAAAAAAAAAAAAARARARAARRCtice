@@ -37,7 +37,7 @@ import java.util.Set;
  * </pre>
  *
  * Summoned mobs go through {@code EntityJoinLevelEvent}, so all spawn handlers
- * (reroll, armor remap, HP buff, top-tier gear, effects, ranged AI) apply to them.
+ * (armor remap, HP buff, top-tier gear, effects, ranged AI) apply to them.
  */
 public final class SpawnTestCommands {
     private static final Logger LOGGER = LogManager.getLogger(SpawnTestCommands.class);
@@ -208,7 +208,7 @@ public final class SpawnTestCommands {
         return summoned;
     }
 
-    /** All entity IDs the mod can spawn or transform: squad members, wanderers, reroll keys/values, top-tier mobs. */
+    /** All entity IDs the mod can spawn: squad members, skeleton-melee, wanderers, top-tier mobs. */
     static Set<String> allMobIds() {
         Set<String> ids = new LinkedHashSet<>();
         ModConfig config = ModConfig.INSTANCE;
@@ -220,13 +220,14 @@ public final class SpawnTestCommands {
                     }
                 }
             }
+            if (config.skeletonMelee.enabled && config.skeletonMelee.skeletonEntity != null) {
+                ids.add(config.skeletonMelee.skeletonEntity);
+            }
             for (ModConfig.WandererCaste caste : config.wanderers.castes) {
                 if (caste.entity != null) {
                     ids.add(caste.entity);
                 }
             }
-            ids.addAll(config.reroll.mapping.keySet());
-            ids.addAll(config.reroll.mapping.values());
         }
         ids.addAll(LocalDifficultySpawner.mobIds());
         return ids;

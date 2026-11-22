@@ -110,7 +110,7 @@ public final class LocalDifficultySpawner {
         }
     }
 
-    static String pickWeighted(List<ModConfig.WeightedItem> items) {
+    public static String pickWeighted(List<ModConfig.WeightedItem> items) {
         if (items == null || items.isEmpty()) {
             return null;
         }

@@ -2,6 +2,7 @@ package com.ancientcivilization.squad;
 
 import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.spawn.EquipmentApplier;
+import com.ancientcivilization.spawn.LocalDifficultySpawner;
 import com.ancientcivilization.spawn.MobGoals;
 import com.ancientcivilization.spawn.StructureLookup;
 import com.ancientcivilization.spawn.WardenTargeting;
@@ -367,7 +368,14 @@ public final class SquadService {
         for (int i = 0; i < count; i++) {
             // Ruin buff: cycle the base roster to reach the boosted headcount.
             ModConfig.Member member = members.get(i % members.size());
-            Mob mob = createMob(member.entity);
+            ModConfig.SkeletonMelee melee = ModConfig.INSTANCE.skeletonMelee;
+            // F2: melee roles may appear as a skeleton (melee mob) instead of the base entity.
+            String entityId = member.entity;
+            if (isMeleeArmRole(melee, member.role) && isReplaceable(melee, entityId)
+                    && RANDOM.nextFloat() < melee.chance) {
+                entityId = melee.skeletonEntity;
+            }
+            Mob mob = createMob(entityId);
             if (mob == null) {
                 continue;
             }
@@ -376,7 +384,16 @@ public final class SquadService {
             BlockPos p = pos.offset((int) (dist * Math.cos(angle)), 0, (int) (dist * Math.sin(angle)));
             p = adjustToGround(p);
             mob.setPos(p.getX() + 0.5, p.getY(), p.getZ() + 0.5);
-            EquipmentApplier.apply(mob, member);
+            // F2: melee roles are armed with skeleton weaponry (weighted, two-handed priority);
+            // armor is unchanged, so a skeleton-melee has the same armor chances as the base melee caste.
+            ModConfig.Member equip = new ModConfig.Member();
+            equip.role = member.role;
+            equip.entity = entityId;
+            equip.armor = member.armor;
+            equip.heldItem = isMeleeArmRole(melee, member.role)
+                    ? rollSkeletonWeapon(melee, member.heldItem)
+                    : member.heldItem;
+            EquipmentApplier.apply(mob, equip);
             mob.addTag("ancient_civilization:squad");
             mob.addTag("ancient_civilization:squad_" + type.id);
             if (member.role != null) {
@@ -408,6 +425,33 @@ public final class SquadService {
             }
             level.addFreshEntity(mob);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // F2: skeleton weaponry + skeleton-melee in squads
+    // ------------------------------------------------------------------
+
+    /** True when the role is armed with skeleton weaponry (melee roles only). */
+    private static boolean isMeleeArmRole(ModConfig.SkeletonMelee melee, String role) {
+        return melee != null && melee.enabled && role != null && melee.applyTo.contains(role);
+    }
+
+    /** True when the base melee entity can be replaced by a skeleton. */
+    private static boolean isReplaceable(ModConfig.SkeletonMelee melee, String entity) {
+        return entity != null && melee.replaceEntities.contains(entity);
+    }
+
+    /**
+     * Roll a skeleton weapon for a melee unit from the weighted pool (two-handed
+     * priority). Falls back to the member's fixed item when the pool is empty or
+     * the rolled item is not registered.
+     */
+    private String rollSkeletonWeapon(ModConfig.SkeletonMelee melee, String fallback) {
+        String id = LocalDifficultySpawner.pickWeighted(melee.weapons);
+        if (id != null && EquipmentApplier.resolveItem(id) != null) {
+            return id;
+        }
+        return fallback;
     }
 
     private Mob createMob(String entityId) {

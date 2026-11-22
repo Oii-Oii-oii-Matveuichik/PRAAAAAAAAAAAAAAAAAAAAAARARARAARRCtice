@@ -17,7 +17,7 @@ public class ModConfig {
     public LocalDifficulty localDifficulty = new LocalDifficulty();
     public Squads squads = new Squads();
     public Animation animation = new Animation();
-    public Reroll reroll = new Reroll();
+    public SkeletonMelee skeletonMelee = new SkeletonMelee();
     public ArmorRemap armorRemap = new ArmorRemap();
     public HpBuff hpBuff = new HpBuff();
     public Wanderers wanderers = new Wanderers();
@@ -288,24 +288,51 @@ public class ModConfig {
     }
 
     // ---------------------------------------------------------------------
-    // F2: skeleton-type -> melee-type reroll
+    // F2: skeleton weaponry on melee units + skeletons as melee mobs in squads
     // ---------------------------------------------------------------------
 
-    public static class Reroll {
+    public static class SkeletonMelee {
         public boolean enabled = true;
-        /** Chance that a skeleton-type cast spawns as its melee-type counterpart. */
+        /**
+         * Chance that a melee squad slot is a skeleton instead of its base melee
+         * entity (zombie family). 0.25 = original config value.
+         */
         public float chance = 0.25f;
-        /** Source entity -> replacement entity (wither_skeleton intentionally absent). */
-        public Map<String, String> mapping = defaultMapping();
+        /** Base melee entities that can be replaced by a skeleton (melee mob). */
+        public List<String> replaceEntities = List.of("minecraft:zombie");
+        /** Replacement entity used for melee slots. */
+        public String skeletonEntity = "minecraft:skeleton";
+        /** Squad roles armed with skeleton weaponry (melee roles; archer excluded). */
+        public List<String> applyTo = List.of("hero", "soldier", "peasant");
+        /**
+         * Skeleton weapon pool for melee units, taken from the original InControl
+         * skeleton table (config/incontrol/spawn.json) — melee weapons only, ranged
+         * (bow/crossbow/musket) excluded because these are melee units. Two-handed
+         * weapons carry priority via higher weight.
+         */
+        public List<WeightedItem> weapons = defaultWeapons();
 
-        private static Map<String, String> defaultMapping() {
-            Map<String, String> map = new LinkedHashMap<>();
-            map.put("minecraft:skeleton", "minecraft:zombie");
-            map.put("variantsandventures:parched", "minecraft:husk");
-            map.put("variantsandventures:murk", "minecraft:drowned");
-            map.put("minecraft:stray", "variantsandventures:gelid");
-            map.put("variantsandventures:verdant", "variantsandventures:thicket");
-            return map;
+        private static List<WeightedItem> defaultWeapons() {
+            List<WeightedItem> list = new ArrayList<>();
+            // Two-handed (priority).
+            list.add(new WeightedItem("simplyswords:iron_claymore", 2));
+            list.add(new WeightedItem("simplyswords:gold_claymore", 2));
+            list.add(new WeightedItem("simplyswords:iron_glaive", 2));
+            list.add(new WeightedItem("simplyswords:gold_glaive", 2));
+            list.add(new WeightedItem("simplyswords:iron_greataxe", 2));
+            list.add(new WeightedItem("simplyswords:gold_greataxe", 2));
+            list.add(new WeightedItem("simplyswords:iron_greathammer", 2));
+            list.add(new WeightedItem("simplyswords:gold_greathammer", 2));
+            list.add(new WeightedItem("simplyswords:iron_scythe", 2));
+            list.add(new WeightedItem("simplyswords:gold_scythe", 2));
+            // One-handed.
+            list.add(new WeightedItem("simplyswords:iron_cutlass", 1));
+            list.add(new WeightedItem("simplyswords:gold_cutlass", 1));
+            list.add(new WeightedItem("simplyswords:iron_katana", 1));
+            list.add(new WeightedItem("simplyswords:gold_katana", 1));
+            list.add(new WeightedItem("simplyswords:iron_rapier", 1));
+            list.add(new WeightedItem("simplyswords:gold_rapier", 1));
+            return list;
         }
     }
 
