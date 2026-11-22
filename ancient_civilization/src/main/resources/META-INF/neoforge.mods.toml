@@ -1,0 +1,87 @@
+# Mod loader configuration for ancient_civilization (NeoForge 1.21.1)
+
+modLoader = "javafml"
+loaderVersion = "[4,)"
+
+license = "MIT"
+authors = "ancient-civilization"
+
+[[mods]]
+modId = "ancient_civilization"
+version = "1.0.0"
+displayName = "Ancient Civilization"
+description = '''
+Ancient civilization spawn overhaul: castes, squads with digging-out spawn animation,
+surface-only squad spawns, local-difficulty-gated top tiers.
+'''
+
+[[dependencies.ancient_civilization]]
+modId = "neoforge"
+type = "required"
+versionRange = "[21.11,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1]"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "incontrol"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "simplyswords"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "irons_artifice"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "the_sift"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "create_deep_dark"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "variantsandventures"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "luckysarmory"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "armory_bridge"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.ancient_civilization]]
+modId = "chained_leather_armor"
+type = "optional"
+ordering = "NONE"
+side = "BOTH"
+
+[[mixins]]
+config = "ancientcivilization.mixins.json"
