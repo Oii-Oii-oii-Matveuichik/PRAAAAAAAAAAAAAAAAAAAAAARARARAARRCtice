@@ -56,6 +56,15 @@ public final class SquadService {
         return INSTANCES.computeIfAbsent(level, SquadService::new);
     }
 
+    /**
+     * Test hook (test commands): spawn a full squad of the given type centered at
+     * {@code center}. Members get the full roster, equipment, tags and persistence,
+     * without timers, animation or ruin-buff scaling.
+     */
+    public void summon(ModConfig.SquadType type, BlockPos center) {
+        spawnSquad(type, adjustToGround(center), false, false, false, null);
+    }
+
     public void tick() {
         tickAnimations();
 

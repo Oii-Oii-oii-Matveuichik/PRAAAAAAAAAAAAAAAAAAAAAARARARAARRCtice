@@ -1,5 +1,6 @@
 package com.ancientcivilization;
 
+import com.ancientcivilization.command.SpawnTestCommands;
 import com.ancientcivilization.config.ConfigLoader;
 import com.ancientcivilization.config.ModConfig;
 import com.ancientcivilization.event.CommonEvents;
@@ -14,5 +15,6 @@ public class AncientCivilization {
     public AncientCivilization(IEventBus modEventBus) {
         ModConfig.INSTANCE = ConfigLoader.load();
         CommonEvents.register(NeoForge.EVENT_BUS);
+        NeoForge.EVENT_BUS.addListener(SpawnTestCommands::register);
     }
 }

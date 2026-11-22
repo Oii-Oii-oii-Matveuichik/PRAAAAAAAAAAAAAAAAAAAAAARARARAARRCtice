@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Random;
@@ -64,6 +65,15 @@ public final class LocalDifficultySpawner {
 
         applyArmor(mob, topTier);
         applyWeapon(mob, topTier);
+    }
+
+    /** All mob entity IDs eligible for top-tier gear rolls (used by the test commands). */
+    public static Set<String> mobIds() {
+        Set<String> ids = new LinkedHashSet<>();
+        for (ResourceLocation id : TOP_MOBS) {
+            ids.add(id.toString());
+        }
+        return ids;
     }
 
     private static void applyArmor(LivingEntity mob, ModConfig.TopTier topTier) {
