@@ -17,9 +17,9 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * F2: melee casts have a chance to spawn as their skeleton-type counterpart
- * (zombie->skeleton, husk->parched, drowned->murk, gelid->stray, thicket->verdant).
- * Equipment is carried over; the replacement is a skeleton-type, so it never re-rolls.
+ * F2: skeleton-type casts have a chance to spawn as their melee-type counterpart
+ * (skeleton->zombie, parched->husk, murk->drowned, stray->gelid, verdant->thicket).
+ * Equipment is carried over; the replacement is a melee-type, so it never re-rolls.
  */
 public final class RerollHandler {
     private static final Logger LOGGER = LogManager.getLogger(RerollHandler.class);

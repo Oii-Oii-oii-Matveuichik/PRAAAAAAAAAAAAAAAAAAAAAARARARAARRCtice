@@ -10,7 +10,7 @@
 - ✅ Дип дарк — биом (Create: Deep Dark); отряд города спавнится **только внутри `minecraft:ancient_city`** (DnT город модифицирует, но ID ванильный — `data/minecraft/...` в пакете нет).
 - ✅ V&V: **gelid, thicket — зомби-тип**; **verdant, murk, parched — скелет-тип**.
 - ✅ Структуры: DnT = `nova_structures:*` (153 структуры), Terralith = `terralith:*`, ванильные ID не переопределены.
-- ✅ Подтверждения (ask_user): варианты **×0.5**; бафф ХП **10%, и на отряды**; буст у структур **×2, радиус 64, деревня НЕ бустит** (только точка марша §6.3); `mindifficulty` **3.0**; реролл-маппинг **ок** (husk→parched, drowned→murk, gelid→stray, thicket→verdant, zombie→skeleton).
+- ✅ Подтверждения (ask_user): варианты **×0.5**; бафф ХП **10%, и на отряды**; буст у структур **×2, радиус 64, деревня НЕ бустит** (только точка марша §6.3); `mindifficulty` **3.0**; реролл-маппинг **скелет-тип → ближник** (25%): skeleton→zombie, parched→husk, murk→drowned, stray→gelid, verdant→thicket.
 - ✅ **F3 «Марш к деревне»**: наземный отряд в ~128 блоках от деревни спавнится в отдалении (64–96 от границы) и идёт к деревне.
 
 ## ⚠ Находка: мёртвые правила в старом конфиге
@@ -40,7 +40,7 @@
 
 **Функции мода `ancient_civilization`:**
 - **F1.** Ядро: `EntityJoinLevelEvent` (после InControl, чтобы видеть финальную экипировку), контекст биома/структуры, конфиг JSON/TOML.
-- **F2.** Реролл «ближник → скелет-тип» (25%): zombie→skeleton, husk→parched, drowned→murk, gelid→stray, thicket→verdant; wither_skeleton — без реролла. Замена сущности с переносом экипировки (защита от повторного срабатывания — маркер NBT).
+- **F2.** Реролл «скелет-тип → ближник» (25%): skeleton→zombie, parched→husk, murk→drowned, stray→gelid, verdant→thicket; wither_skeleton — без реролла. Замена сущности с переносом экипировки (защита от повторного срабатывания — маркер NBT).
 - **F3.** Ремап heavy_iron → heavy_copper/heavy_iron/heavy_golden по температуре биома (веса §4) + стадия окисления меди по влажности.Heavy diamond/netherite/echo/siftite — не трогает.
 - **F4.** Бафф ХП: 10% (и на отряды), равномерно 1..+50% maxHP, attribute modifier.
 - **F5.** ИИ стрелков: арбалет у скелетов, лук у утопленников/мурков — **самостоятельный goal** `AncientRangedGoal` (зарядка + выстрел по vanilla-паттерну `AbstractSkeleton.performRangedAttack`: `ProjectileUtil.getMobArrow` + `Projectile.spawnProjectileUsingShoot`). Миксин-интерфейсы отменены (см. §5).
@@ -202,7 +202,7 @@ Local difficulty (minecraft.wiki): Easy 0.75–1.5, Normal 1.5–4.0, Hard 2.25�
 - Композиция и экипировка из конфига (4 отряда §6.2): hero/soldier/archer/peasant; теги `ancient_civilization:squad[_type][_role]`, `persistenceRequired`; герои — дроп брони/оружия = 0.
 
 ### 12.5 Завершённые функции (F2–F10 + бафф в руинах)
-- **F2 реролл** (`reroll`): ближник → скелет-тип 25%, экипировка переносится, замена + cancel join (замена — скелет-тип, не рероллится).
+- **F2 реролл** (`reroll`): скелет-тип → ближник 25%, экипировка переносится, замена + cancel join (замена — ближник, не рероллится).
 - **F3 ремап/окисление** (`armorRemap`): `heavy_iron_*` → copper/iron/golden по температуре биома (холод/умер/жар/меса/незер, веса §4); меди — стадия по влажности (always oxidized: утопленник/мурк, Древний город, болото; wet/temperate/dry веса base/exposed/weathered/oxidized). Трогает только heavy-tier; diamond/netherite/echo/siftite — не трогает.
 - **F4 бафф ХП** (`hpBuff`): 10% maxHP на 12 мобов нежити включая V&V и отряды; илладжеры/криперы/варден — не трогает.
 - **F5 стрелки** (без миксинов): `AncientRangedGoal` (приоритет 4, от `RangedAIHandler` при появлении) — скелеты с арбалетом и утопленники/мурки с луком стреляют по vanilla-паттерну; goal самоотключается по держанному оружию. Миксин-файлы и `ancientcivilization.mixins.json` удалены.

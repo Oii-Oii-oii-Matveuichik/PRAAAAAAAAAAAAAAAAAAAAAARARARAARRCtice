@@ -288,23 +288,23 @@ public class ModConfig {
     }
 
     // ---------------------------------------------------------------------
-    // F2: melee -> skeleton-type reroll
+    // F2: skeleton-type -> melee-type reroll
     // ---------------------------------------------------------------------
 
     public static class Reroll {
         public boolean enabled = true;
-        /** Chance that a melee cast spawns as its skeleton-type counterpart. */
+        /** Chance that a skeleton-type cast spawns as its melee-type counterpart. */
         public float chance = 0.25f;
         /** Source entity -> replacement entity (wither_skeleton intentionally absent). */
         public Map<String, String> mapping = defaultMapping();
 
         private static Map<String, String> defaultMapping() {
             Map<String, String> map = new LinkedHashMap<>();
-            map.put("minecraft:zombie", "minecraft:skeleton");
-            map.put("minecraft:husk", "variantsandventures:parched");
-            map.put("minecraft:drowned", "variantsandventures:murk");
-            map.put("variantsandventures:gelid", "minecraft:stray");
-            map.put("variantsandventures:thicket", "variantsandventures:verdant");
+            map.put("minecraft:skeleton", "minecraft:zombie");
+            map.put("variantsandventures:parched", "minecraft:husk");
+            map.put("variantsandventures:murk", "minecraft:drowned");
+            map.put("minecraft:stray", "variantsandventures:gelid");
+            map.put("variantsandventures:verdant", "variantsandventures:thicket");
             return map;
         }
     }
